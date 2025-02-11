@@ -1,12 +1,4 @@
 #!/bin/bash
 # export DISPLAY=:0.0
-export OCL_ICD_DEBUG=0
-export MESA_LOADER_DRIVER_OVERRIDE=radeonsi
-export RUSTICL_ENABLE=radeonsi
-export OCL_ICD_VENDORS=/home/lixianrui/opencl/mesa_23/tools/etc/OpenCL/vendors
-export LD_LIBRARY_PATH=/home/lixianrui/opencl/mesa_23/tools/lib:${LD_LIBRARY_PATH}
-export LD_LIBRARY_PATH=/home/lixianrui/opencl/opencv-4.x/install/lib:${LD_LIBRARY_PATH}
-export LIBGAL_DRIVERS_PATH=/home/lixianrui/opencl/mesa_23/tools/lib/dri
-export CMAKE_PREFIX_PATH=/home/lixianrui/opencl/opencv-4.x/install/
-export LD_LIBRARY_PATH=/home/lixianrui/opencl/opencv-4.x/install/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/home/lixianrui/opencl/opencl-icd/OpenCL-ICD-Loader/install/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/home/liuxiaoyan/lixianrui/opencv/build/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=/home/liuxiaoyan/lixianrui/Paddle-Lite/PaddleLite-generic-demo/image_classification_demo/shell/lib:${LD_LIBRARY_PATH}
