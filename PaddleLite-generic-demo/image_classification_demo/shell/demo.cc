@@ -534,8 +534,8 @@ int main(int argc, char **argv) {
           paddle::lite_api::Place{TARGET(kOpenCL), PRECISION(kAny), DATALAYOUT(kNCHW)});
      valid_places.emplace_back(
            paddle::lite_api::Place{TARGET(kOpenCL), PRECISION(kInt32), DATALAYOUT(kNCHW)});
-     valid_places.emplace_back(
-           paddle::lite_api::Place{TARGET(kARM)});  
+//     valid_places.emplace_back(
+//           paddle::lite_api::Place{TARGET(kARM)});  
 } else if (std::find(nnadapter_device_names.begin(),
                        nnadapter_device_names.end(),
                        "cpu") == nnadapter_device_names.end()) {

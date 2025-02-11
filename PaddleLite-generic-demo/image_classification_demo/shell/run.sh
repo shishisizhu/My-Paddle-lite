@@ -1,9 +1,10 @@
 #!/bin/bash
-#MODEL_NAME=mobilenet_v1_fp32_224
+
+MODEL_NAME=mobilenet_v1_fp32_224
 #MODEL_NAME=mobilenet_v1_int8_224_per_layer
 #MODEL_NAME=mobilenet_v1_int8_224_per_channel
 #MODEL_NAME=mobilenet_v2_int8_224_per_layer
-MODEL_NAME=resnet50_fp32_224
+#MODEL_NAME=resnet50_fp32_224
 #MODEL_NAME=resnet50_int8_224_per_layer
 #MODEL_NAME=shufflenet_v2_int8_224_per_layer
 if [ -n "$1" ]; then
