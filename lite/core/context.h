@@ -359,6 +359,7 @@ class Context<TargetType::kX86> {
   // kernel information
 };
 #endif
+//TODO 定义loongarch的context
 
 #ifdef LITE_WITH_OPENCL
 template <>
@@ -448,6 +449,14 @@ class ContextScheduler {
             &ctx->As<ARMContext>());
         break;
 #endif
+
+#ifdef LITE_WITH_LOONGARCH
+      case TARGET(kLoongArch):
+        kernel_contexts_[TargetType::kLoongArch].As<LoongArchContext>().CopySharedTo(
+            &ctx->As<LoongArchContext>());
+        break;
+#endif
+
 #ifdef LITE_WITH_XPU
       case TARGET(kXPU):
         kernel_contexts_[TargetType::kXPU].As<XPUContext>().CopySharedTo(
@@ -497,6 +506,11 @@ class ContextScheduler {
 #ifdef LITE_WITH_ARM
     InitContext<TargetType::kARM, ARMContext>();
 #endif
+
+#ifdef LITE_WITH_kLoongArch
+    InitContext<TargetType::kLoongArch, LoongArchContext>();
+#endif
+
 #ifdef LITE_WITH_OPENCL
     InitContext<TargetType::kOpenCL, OpenCLContext>();
 #endif

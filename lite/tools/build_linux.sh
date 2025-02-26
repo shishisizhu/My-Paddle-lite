@@ -28,7 +28,7 @@ OPTMODEL_DIR=""
 WITH_STATIC_MKL=OFF
 WITH_AVX=OFF
 # options of compiling OPENCL lib.
-WITH_OPENCL=ON
+WITH_OPENCL=OFF
 # options of compiling Metal lib for Mac OS.
 WITH_METAL=OFF
 # controls whether to block temporary 0dim pass, default is OFF
