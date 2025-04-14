@@ -19,7 +19,7 @@
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 // to-do(qili93): need to remove after avx2 complete
@@ -45,6 +45,6 @@ void bias_add_relu6_broadcast(const float* dinx,
                               int num);
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

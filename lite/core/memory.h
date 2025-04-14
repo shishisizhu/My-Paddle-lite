@@ -66,6 +66,7 @@ template <TargetType Target>
 void CopySync(void* dst, const void* src, size_t size, IoDirection dir) {
   switch (Target) {
     case TARGET(kX86):
+    case TARGET(kLoongArch):
     case TARGET(kHost):
     case TARGET(kARM):
       TargetWrapper<TARGET(kHost)>::MemcpySync(

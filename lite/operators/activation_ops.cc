@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.i
-
+#include "lite/api/paddle_place.h"
 #include "lite/operators/activation_ops.h"
 #include "lite/core/op_registry.h"
 

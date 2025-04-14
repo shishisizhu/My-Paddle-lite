@@ -53,6 +53,7 @@ class Context;
 
 using HostContext = Context<TargetType::kHost>;
 using X86Context = Context<TargetType::kX86>;
+using LoongArchContext = Context<TargetType::kLoongArch>;
 using ARMContext = Context<TargetType::kARM>;
 using XPUContext = Context<TargetType::kXPU>;
 using OpenCLContext = Context<TargetType::kOpenCL>;
@@ -360,6 +361,28 @@ class Context<TargetType::kX86> {
 };
 #endif
 //TODO 定义loongarch的context
+
+#ifdef LITE_WITH_LOONGARCH
+template <>
+class Context<TargetType::kLoongArch> {
+ public:
+  // NOTE: InitOnce should only be used by ContextScheduler
+  void InitOnce() {}
+
+  void CopySharedTo(LoongArchContext* ctx) {}
+
+  std::string name() const { return "LoongArchContext"; }
+
+  /*SSEType sse_level() { return device_sse_level(); }
+  AVXType avx_level() { return device_avx_level(); }
+  FMAType fma_level() { return device_fma_level(); }*/
+
+ private:
+  // overall information
+  //
+  // kernel information
+};
+#endif
 
 #ifdef LITE_WITH_OPENCL
 template <>

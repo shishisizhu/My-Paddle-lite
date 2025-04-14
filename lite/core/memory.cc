@@ -66,7 +66,7 @@ void TargetFree(TargetType target, void* data, std::string free_flag) {
       case TargetType::kHost:
       case TargetType::kX86:
       case TargetType::kARM:
-      case TargetTypr::kLoongArch:
+      case TargetType::kLoongArch:
         TargetWrapper<TARGET(kHost)>::Free(data);
         break;
 
