@@ -14,11 +14,9 @@ limitations under the License. */
 
 
 #include "lite/backends/loongarch/math/gemm_s8u8_kernel.h"
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <smmintrin.h>
+#include <lasxintrin.h>
+#include <lsxintrin.h>
 #include <stdint.h>
-#include <tmmintrin.h>
 #include <algorithm>
 
 namespace paddle {
@@ -136,8 +134,8 @@ void gemm_fuse_relu_bias_f32(float* data,
     in4 = lasx_packs_epi16(in1, in3);                             \
     __m128i hi_in =  lasx_extracti128_hi(in4);               \
     __m128i vec_i32_2_i8_tmp =                                      \
-        __lsx_vilvl_w(lasx_extracti128_lo(in4), hi_in);     \
-    hi_in = __lsx_vilvh_w(lasx_extracti128_lo(in4), hi_in); \
+        __lsx_vilvl_w(hi_in, lasx_extracti128_lo(in4);     \
+    hi_in = __lsx_vilvh_w(hi_in, lasx_extracti128_lo(in4)); \
     out = lasx_inserti128_si256(out, vec_i32_2_i8_tmp, 0);        \
     out = lasx_inserti128_si256(out, hi_in, 1);                   \
     out = __lasx_xvmax_b(out, vec_mins_127);                       \

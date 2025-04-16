@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
- project(test_conv_utils)
- add_compile_options(-mlasx) add_definitions(-DLITE_WITH_LOONGARCH)
+project(test_conv_utils)
+add_compile_options(-mlasx) 
+add_definitions(-DLITE_WITH_LOONGARCH)
 set(PADDLE_LITE_ROOT "/home/loongson/Paddle-Lite")
  # 链接目录 
 link_directories( 
@@ -19,7 +20,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 add_executable(
     test_gemm 
     gemm_s8u8_pack.cc 
-    test_gemm_pack.cc 
+    gemm_test.cc 
 )
  # 链接库 
 target_link_libraries(test_gemm 

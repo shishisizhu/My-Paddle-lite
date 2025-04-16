@@ -11,8 +11,8 @@ namespace math {
     int8_t array[1000];
     for(int i=0; i<1000; i++)
             array[i]= i;
-    uint8_t out[2000];
-    gemm_s8u8s8_runpackB(32, 32, 1, array, out, false);
+    int8_t out[2000];
+    gemm_s8u8s8_prepackA(5, 5, array, out, false);
     for(int i=0; i<2000; i++)
         std::cout<< (int)out[i]<<" ";
     std::cout<<std::endl;

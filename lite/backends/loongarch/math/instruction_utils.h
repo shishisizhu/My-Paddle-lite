@@ -310,7 +310,7 @@ inline void lasx_void_maskstore_ps(void* ptr, __m256i mask, __m256 data) {
     __lasx_xvst(blended, ptr, 0);
 }
 
-inline void lasx_maskstore_epi32(void * ptr, __m256i mask, __m256i mask_bits) {
+inline void lasx_maskstore_epi32(void * ptr, __m256i mask, __m256i data) {
      __m256i full_mask = __lasx_xvsrai_w(mask, 31);
      __m256i old_data = __lasx_xvld(ptr, 0);
      __m256i blended = __lasx_xvbitsel_v(old_data, data, full_mask);
@@ -387,10 +387,10 @@ inline __m256 lasx_m256_cmp_ps(__m256 a, __m256 b, int c) {
     tmp2 = lsx_m128i_shuffle_ps((__m128i)(row0), (__m128i)(row1), lsx_mm_shuffle(0xEE)); \
     tmp1 = lsx_m128i_shuffle_ps((__m128i)(row2), (__m128i)(row3), lsx_mm_shuffle(0x44)); \
     tmp3 = lsx_m128i_shuffle_ps((__m128i)(row2), (__m128i)(row3), lsx_mm_shuffle(0xEE)); \
-    (row0) = lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0x88)); \
-    (row1) = lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0xDD)); \
-    (row2) = lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0x88)); \
-    (row3) = lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0xDD)); \
+    (row0) = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0x88)); \
+    (row1) = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0xDD)); \
+    (row2) = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0x88)); \
+    (row3) = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0xDD)); \
 }
 
 inline __m128i lsx_shuffle_epi8(__m128i a, __m128i mask) {
@@ -510,7 +510,7 @@ inline __m128i lsx_srli_si128(__m128i a, int imm) {
     return __lsx_vshuf_b(a, a, vmask);
 }
 
-__m128i lsx_loadl_pi(__m128i a, void *mem_addr) {
+inline __m128i lsx_loadl_pi(__m128i a, void *mem_addr) {
     // 将__m64指针转换为long long类型读取
     long long tmp = *(const long long *)mem_addr;
     // 将tmp插入到向量a的低64位，高位保持不变
@@ -544,7 +544,7 @@ inline __m256i lasx_maskload_epi64(void * mem_addr, __m256i mask) {
     return result;
 }
 
-__m256i lasx_inserti128_si256(__m256i a, __m128i b, const int imm8) {
+inline __m256i lasx_inserti128_si256(__m256i a, __m128i b, const int imm8) {
    return imm8==0 ? lasx_set_q(lasx_extracti128_hi(a), b) : lasx_set_q(b, lasx_extracti128_lo(a));
 }
 
