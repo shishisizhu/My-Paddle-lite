@@ -14,7 +14,7 @@ limitations under the License. */
 
 #include "lite/backends/loongarch/math/conv_depthwise_5x5.h"
 #include <vector>
-#include "lite/backends/loongarch/math/avx_mathfuns.h"
+
 #include "lite/backends/loongarch/math/conv_utils.h"
 #include "lite/backends/loongarch/math/conv_depthwise_impl.h"
 #include "lite/core/memory.h"
@@ -313,7 +313,8 @@ void conv_depthwise_5x5s1(const float* din,
               r3 = blendv_ps(
                   r3, mul_ps(negative_slope, r3), cmp_ps(r3, zero, 2));
             } else if (act_type == lite_api::ActivationType::kHardSwish) {
-              Type vscale = set1_ps(1.0 / act_param.hard_swish_scale);
+              float act_param_scale = 1.0 / act_param.hard_swish_scale;
+              Type vscale = set1_ps(act_param_scale);
               Type voffset = set1_ps(act_param.hard_swish_offset);
               Type vthreshold = set1_ps(act_param.hard_swish_threshold);
               r0 = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r0, voffset))),
@@ -365,7 +366,8 @@ void conv_depthwise_5x5s1(const float* din,
               Type negative_slope = set1_ps(act_param.Leaky_relu_alpha);
               r = blendv_ps(r, mul_ps(negative_slope, r), cmp_ps(r, zero, 2));
             } else if (act_type == lite_api::ActivationType::kHardSwish) {
-              Type vscale = set1_ps(1.0 / act_param.hard_swish_scale);
+                float act_param_scale = 1.0 / act_param.hard_swish_scale;
+              Type vscale = set1_ps(act_param_scale);
               Type voffset = set1_ps(act_param.hard_swish_offset);
               Type vthreshold = set1_ps(act_param.hard_swish_threshold);
               r = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r, voffset))),
@@ -692,7 +694,8 @@ void conv_depthwise_5x5s2(const float* din,
               r3 = blendv_ps(
                   r3, mul_ps(negative_slope, r3), cmp_ps(r3, zero, 2));
             } else if (act_type == lite_api::ActivationType::kHardSwish) {
-              Type vscale = set1_ps(1.0 / act_param.hard_swish_scale);
+              float act_param_scale = 1.0 / act_param.hard_swish_scale;
+              Type vscale = set1_ps(act_param_scale);
               Type voffset = set1_ps(act_param.hard_swish_offset);
               Type vthreshold = set1_ps(act_param.hard_swish_threshold);
               r0 = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r0, voffset))),
@@ -744,7 +747,8 @@ void conv_depthwise_5x5s2(const float* din,
               Type negative_slope = set1_ps(act_param.Leaky_relu_alpha);
               r = blendv_ps(r, mul_ps(negative_slope, r), cmp_ps(r, zero, 2));
             } else if (act_type == lite_api::ActivationType::kHardSwish) {
-              Type vscale = set1_ps(1.0 / act_param.hard_swish_scale);
+              float act_param_scale = 1.0 / act_param.hard_swish_scale;
+              Type vscale = set1_ps(act_param_scale);
               Type voffset = set1_ps(act_param.hard_swish_offset);
               Type vthreshold = set1_ps(act_param.hard_swish_threshold);
               r = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r, voffset))),

@@ -14,6 +14,7 @@ limitations under the License. */
 
 
 #include "lite/backends/loongarch/math/gemm_s8u8_kernel.h"
+#include "lite/backends/loongarch/math/instruction_utils.h"
 #include <lasxintrin.h>
 #include <lsxintrin.h>
 #include <stdint.h>
@@ -43,7 +44,7 @@ void gemm_fuse_relu_bias(__m256* vec_data,
       break;
     case 3:
       vec_lr = __lasx_xvfmul_s(vec_alph, *vec_data);  // lrelu
-      vec_mask = __lasx_xvfcmp_sle_s(*vec_data, vec_zero);
+      vec_mask = (__m256)__lasx_xvfcmp_sle_s(*vec_data, vec_zero);
       *vec_data = (__m256)lasx_m256i_blendv_ps(*vec_data, vec_lr, vec_mask);
       break;
     default:
@@ -67,7 +68,7 @@ void gemm_fuse_relu_bias_128(__m128* vec_data,
       break;
     case 3:
       vec_lr_128 = __lsx_vfmul_s(*vec_data, vec_alph);
-      vec_mask_128 = __lsx_vfcmp_sle_s(*vec_data, vec_zero);
+      vec_mask_128 = (__m128)__lsx_vfcmp_sle_s(*vec_data, vec_zero);
       *vec_data = lsx_m128_blendv_ps(*vec_data, vec_lr_128, vec_mask_128);
       break;
     default:
@@ -118,12 +119,12 @@ void gemm_fuse_relu_bias_f32(float* data,
 // extra 2 regs
 #define _MM256_DOT_U8S8(dst, src1, src2, vec_tmp_marco)          \
   vec_tmp_marco = lasx_maddubs_epi16(src1, src2);              \
-  vec_tmp_marco = __lasx_xvmadd_h(vec_tmp_marco, vec_one_s16); \
+  vec_tmp_marco = lasx_madd_epi16(vec_tmp_marco, vec_one_s16); \
   dst = __lasx_xvadd_w(dst, vec_tmp_marco);
 
 #define _MM_DOT_U8S8(dst, src1, src2, vec_tmp_marco)          \
   vec_tmp_marco = lsx_maddubs_epi16(src1, src2);              \
-  vec_tmp_marco = __lsx_xvmadd_h(vec_tmp_marco, vec_one_128); \
+  vec_tmp_marco = lsx_madd_epi16(vec_tmp_marco, vec_one_128); \
   dst = __lsx_vadd_w(dst, vec_tmp_marco);
 
 // 32 int to 32 int8
@@ -134,7 +135,7 @@ void gemm_fuse_relu_bias_f32(float* data,
     in4 = lasx_packs_epi16(in1, in3);                             \
     __m128i hi_in =  lasx_extracti128_hi(in4);               \
     __m128i vec_i32_2_i8_tmp =                                      \
-        __lsx_vilvl_w(hi_in, lasx_extracti128_lo(in4);     \
+        __lsx_vilvl_w(hi_in, lasx_extracti128_lo(in4));     \
     hi_in = __lsx_vilvh_w(hi_in, lasx_extracti128_lo(in4)); \
     out = lasx_inserti128_si256(out, vec_i32_2_i8_tmp, 0);        \
     out = lasx_inserti128_si256(out, hi_in, 1);                   \
@@ -314,12 +315,12 @@ void gemm_fuse_relu_bias_f32(float* data,
   in0 = __lasx_xvftintrne_w_s(dst_vec_ps0);                              \
   INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) dst_vec_128 =       \
       lasx_extracti128_lo(dst_vec);                                \
-  __lsx_vstelem_d(dst_vec_128, c_ptr + i * ldc, 0, 0);
+  __lsx_vstelm_d(dst_vec_128, c_ptr + i * ldc, 0, 0);
 
 // __m128
 #define STORE_4(in0, i)                                                   \
   {                                                                       \
-    dst_vec_ps0_128 = __lsx_vfmul_s(lsx_vffint_s_w(in0), vec_scale_128[i]); \
+    dst_vec_ps0_128 = __lsx_vfmul_s(__lsx_vffint_s_w(in0), vec_scale_128[i]); \
     ACT_RELU_BIAS_128(dst_vec_ps0_128, vec_bias_128[i], relu_type)        \
     in0 = __lsx_vftint_w_s(dst_vec_ps0_128);                               \
     in0 = __lsx_vmin_w(__lsx_vmax_w(in0, vec_left), vec_right);         \
@@ -377,7 +378,7 @@ void gemm_kernel_loop_int8(int M,
   __m256 dst_vec_ps0, dst_vec_ps1, dst_vec_ps2, dst_vec_ps3;
   // bias and relu
   __m256 vec_alph = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
-  __m256 vec_zero = __lasx_xvreplgr2vr_w(0);
+  __m256 vec_zero = (__m256)__lasx_xvreplgr2vr_w(0);
   // val is in -127, 127, the other side using packs to guarantee
   __m256i vec_mins_127 = __lasx_xvreplgr2vr_b(static_cast<char>(CLIP_BORDER_LEFT));
 
@@ -642,7 +643,7 @@ void gemm_kernel_loop_int8(int M,
 // __m128
 #define STORE_4_float(in0, i)                                             \
   {                                                                       \
-    dst_vec_ps0_128 = __lsx_vfmul_s(lsx_vffint_s_w(in0), vec_scale_128[i]); \
+    dst_vec_ps0_128 = __lsx_vfmul_s(__lsx_vffint_s_w(in0), vec_scale_128[i]); \
     ACT_RELU_BIAS_128(dst_vec_ps0_128, vec_bias_128[i], relu_type)        \
     __lsx_vst(dst_vec_ps0_128, c_ptr + i * ldc, 0);                      \
   }
@@ -691,7 +692,7 @@ void gemm_kernel_loop_int8(int M,
   __m256 dst_vec_ps0, dst_vec_ps1, dst_vec_ps2, dst_vec_ps3;
   // bias and relu
   __m256 vec_alph = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
-  __m256 vec_zero = __lasx_xvreplgr2vr_w(0);
+  __m256 vec_zero = (__m256)__lasx_xvreplgr2vr_w(0);
 
   // SSE
   __m128i vec_C0_128, vec_C1_128;

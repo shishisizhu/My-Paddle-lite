@@ -21,9 +21,7 @@
 #include <libxsmm.h>
 #endif
 
-#ifdef PADDLE_USE_OPENBLAS
 #include <cblas.h>
-#endif
 
 namespace paddle {
 namespace lite {

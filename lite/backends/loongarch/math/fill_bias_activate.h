@@ -1,4 +1,4 @@
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 #include "lite/core/op_registry.h"
 
 namespace paddle {

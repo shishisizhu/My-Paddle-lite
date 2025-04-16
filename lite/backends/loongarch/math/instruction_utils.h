@@ -341,7 +341,7 @@ inline __m128 lsx_m128_blendv_ps(__m128 a, __m128 b, __m128i mask) {
     return (__m128)result_i;
 }
 
-inline __m256i lasx_mm_shuffle(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3) {
+inline __m256i lasx_mm_shuffle(uint32_t a3, uint32_t a2, uint32_t a1, uint32_t a0) {
     
     uint32_t nums[8] = {a0+4, a1+4, a2, a3, a0+4, a1+4, a2, a3};
     return __lasx_xvld(nums, 0);
@@ -369,6 +369,12 @@ inline __m256i lasx_m256i_shuffle_ps(__m256i b, __m256i c, __m256i a) {
 inline __m128i lsx_m128i_shuffle_ps(__m128i b, __m128i c, __m128i a) {
     return __lsx_vshuf_w(a, b, c);
 }
+inline __m128i lsx_m128i_shuffle_ps(__m128 b, __m128i c, __m128i a) {
+    return __lsx_vshuf_w(a, (__m128i)b, c);
+}
+inline __m128i lsx_m128i_shuffle_ps(__m128 b, __m128 c, __m128i a) {
+    return __lsx_vshuf_w(a, (__m128i)b, (__m128i)c);
+}
 
 inline __m256 lasx_m256_cmp_ps(__m256 a, __m256 b, int c) {
     switch (c) {
@@ -387,10 +393,10 @@ inline __m256 lasx_m256_cmp_ps(__m256 a, __m256 b, int c) {
     tmp2 = lsx_m128i_shuffle_ps((__m128i)(row0), (__m128i)(row1), lsx_mm_shuffle(0xEE)); \
     tmp1 = lsx_m128i_shuffle_ps((__m128i)(row2), (__m128i)(row3), lsx_mm_shuffle(0x44)); \
     tmp3 = lsx_m128i_shuffle_ps((__m128i)(row2), (__m128i)(row3), lsx_mm_shuffle(0xEE)); \
-    (row0) = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0x88)); \
-    (row1) = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0xDD)); \
-    (row2) = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0x88)); \
-    (row3) = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0xDD)); \
+    row0 = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0x88)); \
+    row1 = (__m128)lsx_m128i_shuffle_ps(tmp0, tmp1, lsx_mm_shuffle(0xDD)); \
+    row2 = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0x88)); \
+    row3 = (__m128)lsx_m128i_shuffle_ps(tmp2, tmp3, lsx_mm_shuffle(0xDD)); \
 }
 
 inline __m128i lsx_shuffle_epi8(__m128i a, __m128i mask) {
@@ -429,6 +435,13 @@ inline __m128i lsx_packs_epi32(__m128i a, __m128i b) {
     return res;
 }
 inline __m256i lasx_m256i_packs_epi32(__m256i a, __m256i b) {
+   __m256i a_sat = __lasx_xvsat_w(a, 15);
+   __m256i b_sat = __lasx_xvsat_w(b, 15);
+   __m256i res = __lasx_xvpickev_h(b_sat, a_sat);
+   return res;
+}
+
+inline __m256i lasx_packs_epi32(__m256i a, __m256i b) {
    __m256i a_sat = __lasx_xvsat_w(a, 15);
    __m256i b_sat = __lasx_xvsat_w(b, 15);
    __m256i res = __lasx_xvpickev_h(b_sat, a_sat);

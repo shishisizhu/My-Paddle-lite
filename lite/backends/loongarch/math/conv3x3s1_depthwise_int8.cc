@@ -15,6 +15,7 @@ limitations under the License. */
 #include <vector>
 #include "lite/backends/loongarch/math/conv_depthwise_int8.h"
 #include "lite/backends/loongarch/math/saturate.h"
+#include <iostream>
 
 namespace paddle {
 namespace lite {
@@ -288,17 +289,17 @@ inline void transpose3x4_4x4_epi(__m128i& row0,  // NOLINT
   __m128i tmp0 = __lsx_vilvl_w(row1, row0);  // a0a1b0b1
   __m128i tmp1 = __lsx_vilvh_w(row1, row0);  // c0c1d0d1
   // int32 -> fp32
-  __m128 v0 = lsx_vffint_s_w(row2);  // a2b2c2d2
-  __m128 v1 = lsx_vffint_s_w(tmp0);  // a0a1b0b1
-  __m128 v2 = lsx_vffint_s_w(tmp1);  // c0c1d0d1
+  __m128 v0 = __lsx_vffint_s_w(row2);  // a2b2c2d2
+  __m128 v1 = __lsx_vffint_s_w(tmp0);  // a0a1b0b1
+  __m128 v2 = __lsx_vffint_s_w(tmp1);  // c0c1d0d1
   // a0a1a2b2
-  __m128 v00 = lsx_m128i_shuffle_ps(v1, v0, lsx_mm_shuffle(0x44));
+  __m128 v00 = (__m128)lsx_m128i_shuffle_ps(v1, v0, lsx_mm_shuffle(0x44));
   // b0b1b2c2
-  __m128 v01 = lsx_m128i_shuffle_ps(v1, v0, lsx_mm_shuffle(0x9e));  // [10, 01, 11, 10]
+  __m128 v01 = (__m128)lsx_m128i_shuffle_ps(v1, v0, lsx_mm_shuffle(0x9e));  // [10, 01, 11, 10]
   // c0c1c2d2
-  __m128 v02 = lsx_m128i_shuffle_ps(v2, v0, lsx_mm_shuffle(0xe4));  // [11, 10, 01, 00]
+  __m128 v02 = (__m128)lsx_m128i_shuffle_ps(v2, v0, lsx_mm_shuffle(0xe4));  // [11, 10, 01, 00]
   // d0d1c2d2
-  __m128 v03 = lsx_m128i_shuffle_ps(v2, v0, lsx_mm_shuffle(0xee));  // [11, 10, 11, 10]
+  __m128 v03 = (__m128)lsx_m128i_shuffle_ps(v2, v0, lsx_mm_shuffle(0xee));  // [11, 10, 11, 10]
   // fp32 -> int32
   row0 = __lsx_vftint_w_s(v00);
   row1 = __lsx_vftint_w_s(v01);
@@ -702,12 +703,12 @@ inline void store_data_dtype_8(float* dout,
   // * scale + bias
   __m256 vres = __lasx_xvfmadd_s(vout, vscale, vbias);
   // a0b0c0d0a4b4c4d4 -> a0a4b0b4c0c4d0d4
-  __m128 vres_0 = lasx_extracti128_lo(vres);
-  __m128 vres_1 = lasx_extracti128_hi(vres);
+  __m128 vres_0 = (__m128)lasx_extracti128_lo((__m256i)vres);
+  __m128 vres_1 = (__m128)lasx_extracti128_hi((__m256i)vres);
   // a0a4b0b4
-  __lsx_vst(__lsx_vilvl_w(vres_1, vres_0), dout, 0);
+  __lsx_vst(__lsx_vilvl_w((__m128i)vres_1, (__m128i)vres_0), dout, 0);
   // c0c4d0d4
-  __lsx_vst(__lsx_vilvh_w(vres_1, vres_0), dout + 4, 0);
+  __lsx_vst(__lsx_vilvh_w((__m128i)vres_1, (__m128i)vres_0), dout + 4, 0);
 }
 template <>
 inline void store_data_dtype_8(int8_t* dout,
@@ -721,15 +722,15 @@ inline void store_data_dtype_8(int8_t* dout,
   // * scale + bias
   __m256 vres = __lasx_xvfmadd_s(vout, vscale, vbias);
   // a0b0c0d0a4b4c4d4 -> a0a4b0b4c0c4d0d4
-  __m128 vres_0_0 = lasx_extracti128_lo(vres);
-  __m128 vres_1_0 = lasx_extracti128_hi(vres);
+  __m128 vres_0_0 = (__m128)lasx_extracti128_lo((__m256i)vres);
+  __m128 vres_1_0 = (__m128)lasx_extracti128_hi((__m256i)vres);
   // -127
   __m128 vres_0 = lsx_m128_blendv_ps(vmax, vres_0_0, __lsx_vfcmp_clt_s(vres_0_0, vmax));
   __m128 vres_1 = lsx_m128_blendv_ps(vmax, vres_1_0, __lsx_vfcmp_clt_s(vres_1_0, vmax));
   // a0a4b0b4
-  __m128 vout0 = __lsx_vilvl_w(vres_1, vres_0);
+  __m128 vout0 = (__m128)__lsx_vilvl_w((__m128i)vres_1, (__m128i)vres_0);
   // c0c4d0d4
-  __m128 vout1 = (__m128)__lsx_vilvh_w(vres_1, vres_0);
+  __m128 vout1 = (__m128)__lsx_vilvh_w((__m128i)vres_1, (__m128i)vres_0);
   // fp32 -> int32
   __m128i v0_i32 = __lsx_vftint_w_s(vout0);
   __m128i v1_i32 = __lsx_vftint_w_s(vout1);
@@ -739,7 +740,7 @@ inline void store_data_dtype_8(int8_t* dout,
   // int16 -> int8
   __m128i v0_i8 = lsx_packs_epi16(v0_i16, v0_i16);
   __m128i v1_i8 = lsx_packs_epi16(v1_i16, v1_i16);
-  __lsx_vstelem_d(__lsx_vilvl_w(v1_i8, v0_i8), dout, 0, 0);
+  __lsx_vstelm_d(__lsx_vilvl_w(v1_i8, v0_i8), dout, 0, 0);
 }
 template <>
 inline void store_data_dtype_2(float* dout,
@@ -777,7 +778,7 @@ inline void store_data_dtype_1(float* dout,
                                __m128 vscale,
                                __m128 vbias) {
   // int32 -> fp32
-  __m128 vout = lsx_vffint_s_w(vin);
+  __m128 vout = __lsx_vffint_s_w(vin);
   // * scale + bias
   __m128 vres = __lsx_vfmadd_s(vout, vscale, vbias);
   // a0b0c0d0a4b4c4d4 -> a0a4b0b4c0c4d0d4
@@ -789,7 +790,7 @@ inline void store_data_dtype_1(int8_t* dout,
                                __m128 vscale,
                                __m128 vbias) {
   // int32 -> fp32
-  __m128 vout = lsx_vffint_s_w(vin);
+  __m128 vout = __lsx_vffint_s_w(vin);
   // * scale + bias
   __m128 vres = __lsx_vfmadd_s(vout, vscale, vbias);
   // a0b0c0d0a4b4c4d4 -> a0a4b0b4c0c4d0d4
@@ -821,7 +822,6 @@ void conv_3x3s1_dw_int8(Dtype* dout,
   int size_out_channel = wout * hout;
   const int win_round = wout * 16;
   const int hin_round = hout + 2;
-
   int w_stride = 9;  // kernel_w * kernel_h;
   int omp_num = num * chin;
   int pre_in_size = hin_round * win_round;
@@ -831,7 +831,7 @@ void conv_3x3s1_dw_int8(Dtype* dout,
       -127, -127, -127, -127, -127, 8, 7, 6, -127, 5, 4, 3, -127, 2, 1, 0);
   __m128i vone = __lsx_vreplgr2vr_h(1);
   __m256i vone_l = __lasx_xvreplgr2vr_h(1);
-
+  
   int rem_cnt = remain >> 1;
   int rem_rem = remain & 1;
   bool flag_bias = bias ? true : false;
@@ -889,10 +889,10 @@ void conv_3x3s1_dw_int8(Dtype* dout,
         __m256i vsum2 = lasx_maddubs_epi16(vin2, vw);
         __m256i vsum3 = lasx_maddubs_epi16(vin3, vw);
         // s16 * s16 = s32
-        vout0 = __lasx_xvmadd_h(vsum0, vone_l);
-        vout1 = __lasx_xvmadd_h(vsum1, vone_l);
-        vout2 = __lasx_xvmadd_h(vsum2, vone_l);
-        vout3 = __lasx_xvmadd_h(vsum3, vone_l);
+        vout0 = lasx_madd_epi16(vsum0, vone_l);
+        vout1 = lasx_madd_epi16(vsum1, vone_l);
+        vout2 = lasx_madd_epi16(vsum2, vone_l);
+        vout3 = lasx_madd_epi16(vsum3, vone_l);
 
         // a0a2b0b2a4a6b4b6
         __m256i vres0 = lasx_hadd_epi32(vout0, vout1);
@@ -912,7 +912,7 @@ void conv_3x3s1_dw_int8(Dtype* dout,
         // u8 * s8 = s16
         __m256i vsum0 = lasx_maddubs_epi16(vin0, vw);
         // s16 * s16 = s32
-        vout0 = __lasx_xvmadd_h(vsum0, vone_l);
+        vout0 = lasx_madd_epi16(vsum0, vone_l);
 
         // a0a2b0b2a4a6b4b6
         __m256i vres0 = lasx_hadd_epi32(vout0, vout0);
@@ -930,7 +930,7 @@ void conv_3x3s1_dw_int8(Dtype* dout,
         // u8 * s8 = s16
         __m128i vsum0 = lsx_maddubs_epi16(vin0, vw_temp);
         // s16 * s16 = s32
-        vout0 = __lsx_xvmadd_h(vsum0, vone);
+        vout0 = lsx_madd_epi16(vsum0, vone);
         // a0a2b0b2
         __m128i vres0 = lsx_hadd_w(vout0, vout0);
         // a0b0c0d0

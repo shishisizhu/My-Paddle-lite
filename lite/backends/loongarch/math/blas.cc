@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "lite/backends/loongarch/math/blas.h"
-
 #include <utility>
 
 namespace paddle {

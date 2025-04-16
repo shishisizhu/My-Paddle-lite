@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/loongarch/math/_mathfuns.h"
+//#include "lite/backends/loongarch/math/_mathfuns.h"
 #include "lite/backends/loongarch/math/conv_depthwise_pack4.h"
 #include "lite/backends/loongarch/math/conv_depthwise_pack8.h"
 #include "lite/backends/loongarch/math/conv_utils.h"
@@ -86,7 +86,7 @@ void conv_depthwise_3x3s2_p01_direct(
   int w_stride = 9;
 
   __m128 zero = (__m128)__lsx_vreplgr2vr_w(0);
-  __m256 zero_256 = __lasx_xvreplgr2vr_w(0);
+  __m256 zero_256 = (__m256)__lasx_xvreplgr2vr_w(0);
 
   for (int n = 0; n < num; ++n) {
     const float *din_batch = din + n * ch_in * size_in_channel;
@@ -190,15 +190,15 @@ void conv_depthwise_3x3s2_p01_direct(
             din_ptr3 += 5;
             din_ptr4 += 5;
             i0 = (__m256)__lasx_xvinsgr2vr_w(i0, 0, 7);
-            i0 = (__m256)__lasx_xvperm_w(i0, shift_3);
+            i0 = (__m256)__lasx_xvperm_w((__m256i)i0, shift_3);
             i1 = (__m256)__lasx_xvinsgr2vr_w(i1, 0, 7);
-            i1 = (__m256)__lasx_xvperm_w(i1, shift_3);
+            i1 = (__m256)__lasx_xvperm_w((__m256i)i1, shift_3);
             i2 = (__m256)__lasx_xvinsgr2vr_w(i2, 0, 7);
-            i2 = (__m256)__lasx_xvperm_w(i2, shift_3);
+            i2 = (__m256)__lasx_xvperm_w((__m256i)i2, shift_3);
             i3 = (__m256)__lasx_xvinsgr2vr_w(i3, 0, 7);
-            i3 = (__m256)__lasx_xvperm_w(i3, shift_3);
+            i3 = (__m256)__lasx_xvperm_w((__m256i)i3, shift_3);
             i4 = (__m256)__lasx_xvinsgr2vr_w(i4, 0, 7);
-            i4 = (__m256)__lasx_xvperm_w(i4, shift_3);
+            i4 = (__m256)__lasx_xvperm_w((__m256i)i4, shift_3);
           } else {
             din_ptr0 += 6;
             din_ptr1 += 6;
@@ -229,16 +229,16 @@ void conv_depthwise_3x3s2_p01_direct(
 
           // r0 row0
           __m256 res0 = __lasx_xvfmadd_s(i0, wei_00, v_bias);
-          __m256 tmp = (__m256)__lasx_xvperm_w(i0, shift_0);
+          __m256 tmp = (__m256)__lasx_xvperm_w((__m256i)i0, shift_0);
           res0 = __lasx_xvfmadd_s(tmp, wei_01, res0);
-          tmp = (__m256)__lasx_xvperm_w(i0, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i0, shift_1);
           res0 = __lasx_xvfmadd_s(tmp, wei_02, res0);
 
           // r1 row0
           __m256 res1 = __lasx_xvfmadd_s(i2, wei_00, v_bias);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_0);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_0);
           res1 = __lasx_xvfmadd_s(tmp, wei_01, res1);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_1);
           res1 = __lasx_xvfmadd_s(tmp, wei_02, res1);
 
           __m256 wei_10 = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(wei_ptr + 3));
@@ -247,16 +247,16 @@ void conv_depthwise_3x3s2_p01_direct(
 
           // r0 row0 + row1
           res0 = __lasx_xvfmadd_s(i1, wei_10, res0);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_0);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_0);
           res0 = __lasx_xvfmadd_s(tmp, wei_11, res0);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_1);
           res0 = __lasx_xvfmadd_s(tmp, wei_12, res0);
 
           // r1 row0 + row1
           res1 = __lasx_xvfmadd_s(i3, wei_10, res1);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_0);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_0);
           res1 = __lasx_xvfmadd_s(tmp, wei_11, res1);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_1);
           res1 = __lasx_xvfmadd_s(tmp, wei_12, res1);
 
           __m256 wei_20 = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(wei_ptr + 6));
@@ -265,46 +265,46 @@ void conv_depthwise_3x3s2_p01_direct(
 
           // r0 row0 + row1 + row2
           res0 = __lasx_xvfmadd_s(i2, wei_20, res0);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_0);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_0);
           res0 = __lasx_xvfmadd_s(tmp, wei_21, res0);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_1);
           res0 = __lasx_xvfmadd_s(tmp, wei_22, res0);
 
           // r1 row0 + row1 + row2
           res1 = __lasx_xvfmadd_s(i4, wei_20, res1);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_0);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_0);
           res1 = __lasx_xvfmadd_s(tmp, wei_21, res1);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_1);
           res1 = __lasx_xvfmadd_s(tmp, wei_22, res1);
 
           __m256i shift_2 = lasx_m256i_set_epi32(6, 4, 2, 0, 6, 4, 2, 0);
-          __m256 r0 = (__m256)__lasx_xvperm_w(res0, shift_2);
-          __m128 r0_128 = lasx_extracti128_lo(r0);
+          __m256 r0 = (__m256)__lasx_xvperm_w((__m256i)res0, shift_2);
+          __m128 r0_128 = (__m128)lasx_extracti128_lo((__m256i)r0);
 
-          __m256 r1 = (__m256)__lasx_xvperm_w(res1, shift_2);
-          __m128 r1_128 = lasx_extracti128_lo(r1);
+          __m256 r1 = (__m256)__lasx_xvperm_w((__m256i)res1, shift_2);
+          __m128 r1_128 = (__m128)lasx_extracti128_lo((__m256i)r1);
 
           if (has_active) {  // process activation
             if (act_type == lite_api::ActivationType::kRelu) {
               r0_128 = __lsx_vfmax_s(r0_128, zero);
               r1_128 = __lsx_vfmax_s(r1_128, zero);
             } else if (act_type == lite_api::ActivationType::kRelu6) {
-              float fsix = 6.f
+              float fsix = 6.f;
               __m128 six = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&fsix));
               r0_128 = __lsx_vfmin_s(__lsx_vfmax_s(r0_128, zero), six);
               r1_128 = __lsx_vfmin_s(__lsx_vfmax_s(r1_128, zero), six);
             } else if (act_type == lite_api::ActivationType::kLeakyRelu) {
               __m128 negative_slope = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Leaky_relu_alpha));
               r0_128 = __lsx_vfadd_s(
-                  (__m128i)__lsx_vand_v((__m128i)__lsx_vfcmp_sle_s(zero, r0_128), (__m128i)r0_128),
+                  (__m128)__lsx_vand_v((__m128i)__lsx_vfcmp_sle_s(zero, r0_128), (__m128i)r0_128),
                   __lsx_vfmul_s((__m128)__lsx_vand_v((__m128i)__lsx_vfcmp_slt_s(r0_128, zero), (__m128i)r0_128),
                              negative_slope));
               r1_128 = __lsx_vfadd_s(
-                  (__m128)__lsx_vand_v((__128i)__lsx_vfcmp_sle_s(zero, r1_128), (__m128i)r1_128),
+                  (__m128)__lsx_vand_v((__m128i)__lsx_vfcmp_sle_s(zero, r1_128), (__m128i)r1_128),
                   __lsx_vfmul_s((__m128)__lsx_vand_v((__m128i)__lsx_vfcmp_slt_s(r1_128, zero), (__m128i)r1_128),
                              negative_slope));
             } else if (act_type == lite_api::ActivationType::kHardSwish) {
-              float act_param_scale = 1.0 / act_param.HardSwish_alpha;
+              float act_param_scale = 1.0 / act_param.hard_swish_scale;
               __m128 vscale = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param_scale));
               __m128 voffset = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_offset));
               __m128 vthreshold = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_threshold));
@@ -390,7 +390,7 @@ void conv_depthwise_3x3s1_p01_direct(
   int size_out_channel = w_out * h_out;
   int w_stride = 9;
 
-  __m256 zero = __lasx_xvreplgr2vr_w(0);
+  __m256 zero = (__m256)__lasx_xvreplgr2vr_w(0);
 
   for (int n = 0; n < num; ++n) {
     const float *din_batch = din + n * ch_in * size_in_channel;
@@ -505,17 +505,17 @@ void conv_depthwise_3x3s1_p01_direct(
             din_ptr4 += 5;
             din_ptr5 += 5;
             i0 =  (__m256)__lasx_xvinsgr2vr_w(i0, 0, 7);
-            i0 = (__m256)__lasx_xvperm_w(i0, shift_3);
+            i0 = (__m256)__lasx_xvperm_w((__m256i)i0, shift_3);
             i1 = (__m256)__lasx_xvinsgr2vr_w(i1, 0, 7);
-            i1 = (__m256)__lasx_xvperm_w(i1, shift_3);
+            i1 = (__m256)__lasx_xvperm_w((__m256i)i1, shift_3);
             i2 = (__m256)__lasx_xvinsgr2vr_w(i2, 0, 7);
-            i2 = (__m256)__lasx_xvperm_w(i2, shift_3);
+            i2 = (__m256)__lasx_xvperm_w((__m256i)i2, shift_3);
             i3 = (__m256)__lasx_xvinsgr2vr_w(i3, 0, 7);
-            i3 = (__m256)__lasx_xvperm_w(i3, shift_3);
+            i3 = (__m256)__lasx_xvperm_w((__m256i)i3, shift_3);
             i4 = (__m256)__lasx_xvinsgr2vr_w(i4, 0, 7);
-            i4 = (__m256)__lasx_xvperm_w(i4, shift_3);
+            i4 = (__m256)__lasx_xvperm_w((__m256i)i4, shift_3);
             i5 = (__m256)__lasx_xvinsgr2vr_w(i5, 0, 7);
-            i5 = (__m256)__lasx_xvperm_w(i5, shift_3);
+            i5 = (__m256)__lasx_xvperm_w((__m256i)i5, shift_3);
           } else {
             din_ptr0 += 6;
             din_ptr1 += 6;
@@ -561,30 +561,30 @@ void conv_depthwise_3x3s1_p01_direct(
 
           // r0 row0
           __m256 r0 = __lasx_xvfmadd_s(i0, wei_00, v_bias);
-          __m256 tmp = (__m256)__lasx_xvperm_w(i0, shift_1);
+          __m256 tmp = (__m256)__lasx_xvperm_w((__m256i)i0, shift_1);
           r0 = __lasx_xvfmadd_s(tmp, wei_01, r0);
-          tmp = (__m256)__lasx_xvperm_w(i0, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i0, shift_2);
           r0 = __lasx_xvfmadd_s(tmp, wei_02, r0);
 
           // r1 row0
           __m256 r1 = __lasx_xvfmadd_s(i1, wei_00, v_bias);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_1);
           r1 = __lasx_xvfmadd_s(tmp, wei_01, r1);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_2);
           r1 = __lasx_xvfmadd_s(tmp, wei_02, r1);
 
           // r2 row0
           __m256 r2 = __lasx_xvfmadd_s(i2, wei_00, v_bias);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_1);
           r2 = __lasx_xvfmadd_s(tmp, wei_01, r2);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_2);
           r2 = __lasx_xvfmadd_s(tmp, wei_02, r2);
 
           // r3 row0
           __m256 r3 = __lasx_xvfmadd_s(i3, wei_00, v_bias);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_1);
           r3 = __lasx_xvfmadd_s(tmp, wei_01, r3);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_2);
           r3 = __lasx_xvfmadd_s(tmp, wei_02, r3);
 
           __m256 wei_10 = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(wei_ptr + 3));
@@ -593,30 +593,30 @@ void conv_depthwise_3x3s1_p01_direct(
 
           // r0 row0 + row1
           r0 = __lasx_xvfmadd_s(i1, wei_10, r0);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_1);
           r0 = __lasx_xvfmadd_s(tmp, wei_11, r0);
-          tmp = (__m256)__lasx_xvperm_w(i1, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i1, shift_2);
           r0 = __lasx_xvfmadd_s(tmp, wei_12, r0);
 
           // r1 row0 + row1
           r1 = __lasx_xvfmadd_s(i2, wei_10, r1);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_1);
           r1 = __lasx_xvfmadd_s(tmp, wei_11, r1);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_2);
           r1 = __lasx_xvfmadd_s(tmp, wei_12, r1);
 
           // r2 row0 + row1
           r2 = __lasx_xvfmadd_s(i3, wei_10, r2);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_1);
           r2 = __lasx_xvfmadd_s(tmp, wei_11, r2);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_2);
           r2 = __lasx_xvfmadd_s(tmp, wei_12, r2);
 
           // r3 row0 + row1
           r3 = __lasx_xvfmadd_s(i4, wei_10, r3);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_1);
           r3 = __lasx_xvfmadd_s(tmp, wei_11, r3);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_2);
           r3 = __lasx_xvfmadd_s(tmp, wei_12, r3);
 
           __m256 wei_20 = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(wei_ptr + 6));
@@ -625,30 +625,30 @@ void conv_depthwise_3x3s1_p01_direct(
 
           // r0 row0 + row1 + row2
           r0 = __lasx_xvfmadd_s(i2, wei_20, r0);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_1);
           r0 = __lasx_xvfmadd_s(tmp, wei_21, r0);
-          tmp = (__m256)__lasx_xvperm_w(i2, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i2, shift_2);
           r0 = __lasx_xvfmadd_s(tmp, wei_22, r0);
 
           // r1 row0 + row1 + row2
           r1 = __lasx_xvfmadd_s(i3, wei_20, r1);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_1);
           r1 = __lasx_xvfmadd_s(tmp, wei_21, r1);
-          tmp = (__m256)__lasx_xvperm_w(i3, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i3, shift_2);
           r1 = __lasx_xvfmadd_s(tmp, wei_22, r1);
 
           // r2 row0 + row1 + row2
           r2 = __lasx_xvfmadd_s(i4, wei_20, r2);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_1);
           r2 = __lasx_xvfmadd_s(tmp, wei_21, r2);
-          tmp = (__m256)__lasx_xvperm_w(i4, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i4, shift_2);
           r2 = __lasx_xvfmadd_s(tmp, wei_22, r2);
 
           // r3 row0 + row1 + row2
           r3 = __lasx_xvfmadd_s(i5, wei_20, r3);
-          tmp = (__m256)__lasx_xvperm_w(i5, shift_1);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i5, shift_1);
           r3 = __lasx_xvfmadd_s(tmp, wei_21, r3);
-          tmp = (__m256)__lasx_xvperm_w(i5, shift_2);
+          tmp = (__m256)__lasx_xvperm_w((__m256i)i5, shift_2);
           r3 = __lasx_xvfmadd_s(tmp, wei_22, r3);
 
           if (has_active) {
@@ -671,7 +671,7 @@ void conv_depthwise_3x3s1_p01_direct(
                   __lasx_xvfmul_s((__m256)__lasx_xvand_v((__m256i)__lasx_xvfcmp_clt_s(r0, zero), (__m256i)r0),
                                 negative_slope));
               r1 = __lasx_xvfadd_s(
-                  (__m256)__lasx_xvand_v((__m256i)__lasx_xvfcmp_cle_s(zero, r1), (_m256i)r1),
+                  (__m256)__lasx_xvand_v((__m256i)__lasx_xvfcmp_cle_s(zero, r1), (__m256i)r1),
                   __lasx_xvfmul_s((__m256)__lasx_xvand_v((__m256i)__lasx_xvfcmp_clt_s(r1, zero), (__m256i)r1),
                                 negative_slope));
               r2 = __lasx_xvfadd_s(

@@ -1,6 +1,7 @@
 #pragma once
 #include "lite/backends/loongarch/math/instruction_utils.h"
 #include <lasxintrin.h>
+#include <lsxintrin.h>
 #include <vector>
 #include "lite/core/tensor.h"
 #include "lite/operators/op_params.h"
@@ -157,16 +158,16 @@ inline void transpose8_ps(__m256& row0,  // NOLINT
                           __m256& row6,  // NOLINT
                           __m256& row7   // NOLINT
                           ) {
-  __m256 __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7;
-  __m256 __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7;
-  __t0 = __lasx_xvilvl_w(row1, row0);
-  __t1 = __lasx_xvilvh_w(row1, row0);
-  __t2 = __lasx_xvilvl_w(row3, row2);
-  __t3 = __lasx_xvilvh_w(row3, row2);
-  __t4 = __lasx_xvilvl_w(row5, row4);
-  __t5 = __lasx_xvilvh_w(row5, row4);
-  __t6 = __lasx_xvilvl_w(row7, row6);
-  __t7 = __lasx_xvilvh_w(row7, row6);
+  __m256i __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7;
+  __m256i __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7;
+  __t0 = __lasx_xvilvl_w((__m256i)row1, (__m256i)row0);
+  __t1 = __lasx_xvilvh_w((__m256i)row1, (__m256i)row0);
+  __t2 = __lasx_xvilvl_w((__m256i)row3, (__m256i)row2);
+  __t3 = __lasx_xvilvh_w((__m256i)row3, (__m256i)row2);
+  __t4 = __lasx_xvilvl_w((__m256i)row5, (__m256i)row4);
+  __t5 = __lasx_xvilvh_w((__m256i)row5, (__m256i)row4);
+  __t6 = __lasx_xvilvl_w((__m256i)row7, (__m256i)row6);
+  __t7 = __lasx_xvilvh_w((__m256i)row7, (__m256i)row6);
   __tt0 = lasx_m256i_shuffle_ps(__t0, __t2, lasx_mm_shuffle(1, 0, 1, 0));
   __tt1 = lasx_m256i_shuffle_ps(__t0, __t2, lasx_mm_shuffle(3, 2, 3, 2));
   __tt2 = lasx_m256i_shuffle_ps(__t1, __t3, lasx_mm_shuffle(1, 0, 1, 0));
@@ -175,15 +176,16 @@ inline void transpose8_ps(__m256& row0,  // NOLINT
   __tt5 = lasx_m256i_shuffle_ps(__t4, __t6, lasx_mm_shuffle(3, 2, 3, 2));
   __tt6 = lasx_m256i_shuffle_ps(__t5, __t7, lasx_mm_shuffle(1, 0, 1, 0));
   __tt7 = lasx_m256i_shuffle_ps(__t5, __t7, lasx_mm_shuffle(3, 2, 3, 2));
-  row0 = __lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x20));
-  row1 = __lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x20));
-  row2 = __lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x20));
-  row3 = __lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x20));
-  row4 = __lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x31));
-  row5 = __lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x31));
-  row6 = __lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x31));
-  row7 = __lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x31));
+  row0 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x20));
+  row1 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x20));
+  row2 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x20));
+  row3 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x20));
+  row4 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x31));
+  row5 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x31));
+  row6 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x31));
+  row7 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x31));
 }
+
 
 }  // namespace math
 }  // namespace loongarch

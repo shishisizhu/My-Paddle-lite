@@ -63,7 +63,7 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
   for (int idx = 0; idx < total_count; ++idx) {
     __m256 _bias0 =
         bias ? (__m256)__lasx_xvld(bias->data<float>() + (idx % channel_num) * 8, 0)
-             : __lasx_xvreplgr2vr_w(0);
+             : (__m256)__lasx_xvreplgr2vr_w(0);
 
     const float* k0 = filter_data + (idx % channel_num) * filter_channel_step;
 
@@ -771,10 +771,10 @@ void conv_depthwise_m256(lite::Tensor* input,
       const float* filter_ptr = filter_data + ic * filter_channel_step;
       for (int i = 0; i < output_height; ++i) {
         for (int j = 0; j < output_width; ++j) {
-          __m256 _sum = __lasx_xvreplgr2vr_w(0);
+          __m256 _sum = (__m256)__lasx_xvreplgr2vr_w(0);
 
           if (bias) {
-            _sum = __lasx_xvld((bias->data<float>()) + ic * 8, 0);
+            _sum = (__m256)__lasx_xvld((bias->data<float>()) + ic * 8, 0);
           }
 
           const float* start_ptr =

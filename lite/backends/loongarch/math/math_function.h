@@ -15,8 +15,6 @@ limitations under the License. */
 #pragma once
 #include <cmath>
 #include <vector>
-
-#include "lite/backends/loongarch/fluid/float16.h"
 #include "lite/core/context.h"
 #include "lite/core/op_lite.h"
 #include "lite/core/tensor.h"

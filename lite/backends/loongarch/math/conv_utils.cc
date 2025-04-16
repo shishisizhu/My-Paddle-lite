@@ -90,29 +90,29 @@ static inline void transpose4x8_ps(__m256& row0,  // NOLINT
                                    __m256& row3   // NOLINT
                                    ) {
   // vtmp0=a0b0a1b1a4b4a5b5
-  __m256 vtmp0 = __lasx_xvilvl_w(row1, row0);
+  __m256 vtmp0 = (__m256)__lasx_xvilvl_w((__m256i)row1, (__m256i)row0);
   // vtmp1=a2b2a3b3a6b6a7b7
-  __m256 vtmp1 = __lasx_xvilvh_w(row1, row0);
+  __m256 vtmp1 = (__m256)__lasx_xvilvh_w((__m256i)row1, (__m256i)row0);
   // vtmp2=c0d0c1d1c4d4c5d5
-  __m256 vtmp2 = __lasx_xvilvl_w(row3, row2);
+  __m256 vtmp2 = (__m256)__lasx_xvilvl_w((__m256i)row3, (__m256i)row2);
   // vtmp3=c2d2c3d3c6d6c7d7
-  __m256 vtmp3 = __lasx_xvilvh_w(row3, row2);
+  __m256 vtmp3 = (__m256)__lasx_xvilvh_w((__m256i)row3, (__m256i)row2);
   // vres0=a0b0c0d0a4b4c4d4
-  __m256 vres0 = lasx_m256i_shuffle_ps(vtmp0, vtmp2, 0x44);  // 0xaa=[01,00,01,00]
+  __m256i vres0 = lasx_m256i_shuffle_ps((__m256i)vtmp0, (__m256i)vtmp2, lasx_mm_shuffle(0x44));  // 0xaa=[01,00,01,00]
   // vres1=a1b1c1d1a5b5c5d5
-  __m256 vres1 = lasx_m256i_shuffle_ps(vtmp0, vtmp2, 0xee);  // 0xaa=[11,10,11,10]
+  __m256i vres1 = lasx_m256i_shuffle_ps((__m256i)vtmp0, (__m256i)vtmp2, lasx_mm_shuffle(0xee));  // 0xaa=[11,10,11,10]
   // vres2=a2b2c2d2a6b6c6d6
-  __m256 vres2 = lasx_m256i_shuffle_ps(vtmp1, vtmp3, 0x44);  // 0xaa=[01,00,01,00]
+  __m256i vres2 = lasx_m256i_shuffle_ps((__m256i)vtmp1, (__m256i)vtmp3, lasx_mm_shuffle(0x44));  // 0xaa=[01,00,01,00]
   // vres3=a3b3c3d3a7b7c7d7
-  __m256 vres3 = lasx_m256i_shuffle_ps(vtmp1, vtmp3, 0xee);  // 0xaa=[11,10,11,10]
+  __m256i vres3 = lasx_m256i_shuffle_ps((__m256i)vtmp1, (__m256i)vtmp3, lasx_mm_shuffle(0xee));  // 0xaa=[11,10,11,10]
   // row0=a0b0c0d0a1b1c1d1
-  row0 = __lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x20));
+  row0 = (__m256)__lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x20));
   // row1=a2b2c2d2a3b3c3d3
-  row1 = __lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x20));
+  row1 = (__m256)__lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x20));
   // row2=a4b4c4d4a5b5c5d5
-  row2 = __lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x31));
+  row2 = (__m256)__lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x31));
   // row3=a6b6c6d6a7b7c7d7
-  row3 = __lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x31));
+  row3 = (__m256)__lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x31));
 }
 
 // input  [bs, ic, ih, iw] => [bs, ic/8, ih, iw, 8]
@@ -169,12 +169,12 @@ void pack8_m256(lite::Tensor* input,
         __m256 _row6 = (__m256)__lasx_xvld(r6, 0);
         __m256 _row7 = (__m256)__lasx_xvld(r7, 0);
         transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-        __lasx_xvst(_row0, output_data, 0)
-        __lasx_xvst(_row1, output_data + 8, 0)
-        __lasx_xvst(_row2, output_data + 16, 0)
-        __lasx_xvst(_row3, output_data + 24, 0)
-        __lasx_xvst(_row4, output_data + 32, 0)
-        __lasx_xvst(_row5, output_data + 40, 0)
+        __lasx_xvst(_row0, output_data, 0);
+        __lasx_xvst(_row1, output_data + 8, 0);
+        __lasx_xvst(_row2, output_data + 16, 0);
+        __lasx_xvst(_row3, output_data + 24, 0);
+        __lasx_xvst(_row4, output_data + 32, 0);
+        __lasx_xvst(_row5, output_data + 40, 0);
         __lasx_xvst(_row6, output_data + 48, 0);
         __lasx_xvst(_row7, output_data + 56, 0);
         r0 += 8;
@@ -438,7 +438,7 @@ void padding8_m256(lite::Tensor* input,
   int top_size = top * out_width;
   int bottom_size = bottom * out_width;
 
-  __m256 pad_val = __lasx_xvreplgr2vr_w(0);
+  __m256 pad_val = (__m256)__lasx_xvreplgr2vr_w(0);
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
@@ -626,7 +626,7 @@ void pack_padding8_m256(lite::Tensor* input,
   int top_size = top * out_width;
   int bottom_size = bottom * out_width;
 
-  __m256 pad_val = __lasx_xvreplgr2vr_w(0);
+  __m256 pad_val = (__m256)__lasx_xvreplgr2vr_w(0);
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
@@ -792,14 +792,14 @@ void packC8_common(const float* din,
           douth += 8;
         }
       } else {
-        __m256 _row0 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row1 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row2 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row3 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row4 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row5 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row6 = __lasx_xvreplgr2vr_d(0);
-        __m256 _row7 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row0 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row1 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row2 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row3 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row4 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row5 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row6 = (__m256)__lasx_xvreplgr2vr_d(0);
+        __m256 _row7 = (__m256)__lasx_xvreplgr2vr_d(0);
         for (; j + 7 < w_in; j += 8) {
           _row0 = (__m256)__lasx_xvld(dinr0, 0);
           if (channel - c > 1) _row1 = (__m256)__lasx_xvld(dinr1, 0);
@@ -954,9 +954,9 @@ __m256 activation8_m256(__m256 input,
                         const lite_api::ActivationType act_type,
                         const operators::ActivationParam act_param) {
   if (act_type == lite_api::ActivationType::kRelu) {
-    return __lasx_xvfmax_s(input, __lasx_xvreplgr2vr_d(0));
+    return __lasx_xvfmax_s(input, (__m256)__lasx_xvreplgr2vr_d(0));
   } else if (act_type == lite_api::ActivationType::kRelu6) {
-    __m256 _val = __lasx_xvfmax_s(input, __lasx_xvreplgr2vr_d(0));
+    __m256 _val = __lasx_xvfmax_s(input, (__m256)__lasx_xvreplgr2vr_d(0));
     return __lasx_xvfmin_s(_val, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Relu_clipped_coef)));
   } else if (act_type == lite_api::ActivationType::kLeakyRelu) {
     __m256 _val_scale =
@@ -964,7 +964,7 @@ __m256 activation8_m256(__m256 input,
     return (__m256)lasx_m256i_blendv_ps(
         _val_scale,
         input,
-        __lasx_xvfcmp_slt_s(__lasx_xvreplgr2vr_d(0), input);
+        __lasx_xvfcmp_slt_s((__m256)__lasx_xvreplgr2vr_d(0), input));
   } else if (act_type == lite_api::ActivationType::kHardSwish) {
     float act_param_scale = 1.0 / act_param.hard_swish_scale;
     __m256 _val_offset =
@@ -973,27 +973,27 @@ __m256 activation8_m256(__m256 input,
         __lasx_xvfmul_s(input, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param_scale)));
     __m256 _val =
         __lasx_xvfmin_s((__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_threshold)),
-                      __lasx_xvfmax_s(_val_offset, __lasx_xvreplgr2vr_d(0)));
+                      __lasx_xvfmax_s(_val_offset, (__m256)__lasx_xvreplgr2vr_d(0)));
     return __lasx_xvfmul_s(_val, _val_scale);
   } else {
     LOG(FATAL) << "[LoongArch] activation type not supported";
   }
-  return __lasx_xvreplgr2vr_d(0);
+  return (__m256)__lasx_xvreplgr2vr_d(0);
 }
 
 __m128 activation4_m128(__m128 input,
                         const lite_api::ActivationType act_type,
                         const operators::ActivationParam act_param) {
   if (act_type == lite_api::ActivationType::kRelu) {
-    return __lsx_vfmax_s(input, __lsx_vreplgr2vr_w(0));
+    return __lsx_vfmax_s(input, (__m128)__lsx_vreplgr2vr_w(0));
   } else if (act_type == lite_api::ActivationType::kRelu6) {
-    __m128 _val = __lsx_vfmax_s(input, __lsx_vreplgr2vr_w(0));
+    __m128 _val = __lsx_vfmax_s(input, (__m128)__lsx_vreplgr2vr_w(0));
     return __lsx_vfmin_s(_val, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Relu_clipped_coef)));
   } else if (act_type == lite_api::ActivationType::kLeakyRelu) {
     __m128 _val_scale =
         __lsx_vfmul_s(input, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Leaky_relu_alpha)));
     return lsx_m128_blendv_ps(
-        _val_scale, input, __lsx_vfcmp_slt_s(__lsx_vreplgr2vr_w(0), input));
+        _val_scale, input, __lsx_vfcmp_slt_s((__m128)__lsx_vreplgr2vr_w(0), input));
   } else if (act_type == lite_api::ActivationType::kHardSwish) {
     float act_param_scale = 1.0 / act_param.hard_swish_scale;
     __m128 _val_offset =
@@ -1001,12 +1001,12 @@ __m128 activation4_m128(__m128 input,
     __m128 _val_scale =
         __lsx_vfmul_s(input, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param_scale)));
     __m128 _val = __lsx_vfmin_s((__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_threshold)),
-                             __lsx_vfmax_s(_val_offset, __lsx_vreplgr2vr_w(0)));
+                             __lsx_vfmax_s(_val_offset, (__m128)__lsx_vreplgr2vr_w(0)));
     return __lsx_vfmul_s(_val, _val_scale);
   } else {
     LOG(FATAL) << "[LoongArch] activation type not supported";
   }
-  return __lsx_vreplgr2vr_w(0);
+  return (__m128)__lsx_vreplgr2vr_w(0);
 }
 
 float activation1_float(float input,

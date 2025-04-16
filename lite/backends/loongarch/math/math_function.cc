@@ -13,12 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "lite/backends/loongarch/math/math_function.h"
-#ifdef PADDLE_USE_OPENBLAS
 #include <cblas.h>
-#endif
 #include <vector>
 #include "lite/backends/loongarch/fluid/data_type.h"
-#include "lite/backends/loongarch/fluid/float16.h"
 #include "lite/backends/loongarch/math/math_function_impl.h"
 
 namespace paddle {
@@ -35,9 +32,6 @@ template struct SetConstant<lite::TargetType::kLoongArch, bool>;
 template struct SetConstant<lite::TargetType::kLoongArch, uint8_t>;
 
 #define DEFINE_CPU_TRANS(RANK)                                      \
-  template struct Transpose<lite::TargetType::kLoongArch,                 \
-                            lite::fluid::float16,                   \
-                            RANK>;                                  \
   template struct Transpose<lite::TargetType::kLoongArch, float, RANK>;   \
   template struct Transpose<lite::TargetType::kLoongArch, double, RANK>;  \
   template struct Transpose<lite::TargetType::kLoongArch, int, RANK>;     \

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "lite/backends/loongarch/math/instance_norm.h"
-#include <immintrin.h>
+#include <lsxintrin.h>
 #include <cmath>
 
 namespace paddle {
