@@ -32,42 +32,42 @@ typedef long long int __int64;  // NOLINT
   vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);            \
   vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);            \
   vec_out = __lsx_vilvl_h(vec_23, vec_12);                    \
-  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);                        \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8)), out_ptr + K_align * 2, 0, 0);  \
+  __lsx_vstelm_d(vec_out, out_ptr, 0, 0);                        \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8)), out_ptr + K_align * 2, 0, 0);  \
   vec_out = __lsx_vilvh_h(vec_23, vec_12);                    \
-  __lsx_vstelem_d(vec_out, out_ptr + K_align * 4, 0);                        \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6, 0, 0);     \
+  __lsx_vstelm_d(vec_out, out_ptr + K_align * 4, 0);                        \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6, 0, 0);     \
   vec_12 = __lsx_vilvh_b(vec_line[1], vec_line[0]);            \
   vec_23 = __lsx_vilvh_b(vec_line[3], vec_line[2]);            \
   vec_out = __lsx_vilvl_h(vec_23, vec_12);                    \
-  __lsx_vstelem_d(vec_out, out_ptr + K_align * 8, 0, 0);                        \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 10, 0, 0);     \
+  __lsx_vstelm_d(vec_out, out_ptr + K_align * 8, 0, 0);                        \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 10, 0, 0);     \
   vec_out = __lsx_vilvh_h(vec_23, vec_12);                    \
-  __lsx_vstelem_d(vec_out, out_ptr + K_align * 12, 0, 0);                        \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 14, 0, 0);
+  __lsx_vstelm_d(vec_out, out_ptr + K_align * 12, 0, 0);                        \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 14, 0, 0);
 
 #define TRANSPOSEA_4x8                                            \
   vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);           \
   vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);           \
   vec_out = __lsx_vilvl_h(vec_23, vec_12);                   \
-  __lsx_vstelem_d( vec_out, out_ptr, 0, 0);                       \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);    \
+  __lsx_vstelm_d( vec_out, out_ptr, 0, 0);                       \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);    \
   vec_out = __lsx_vilvh_h(vec_23, vec_12);                   \
-  __lsx_vstelem_d(vec_out, out_ptr + K_align * 4, 0, 0);                       \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6), 0, 0);
+  __lsx_vstelm_d(vec_out, out_ptr + K_align * 4, 0, 0);                       \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6), 0, 0);
 
 #define TRANSPOSEA_4x4                                            \
   vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);           \
   vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);           \
   vec_out = __lsx_vilvl_h(vec_23, vec_12);                   \
-  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);                       \
-  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);
+  __lsx_vstelm_d(vec_out, out_ptr, 0, 0);                       \
+  __lsx_vstelm_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);
 
 #define TRANSPOSEA_4x2                                  \
   vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]); \
   vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]); \
   vec_out = __lsx_vilvl_h(vec_23, vec_12);         \
-  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);
+  __lsx_vstelm_d(vec_out, out_ptr, 0, 0);
 
 // if K is not 4-aligned, need to pad zero
 void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
@@ -112,7 +112,7 @@ void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
       vec_line1_h = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(A + (loop_m + 1) * K + loop_k)));
       vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
-      __lsx_vstelem_d(vec_lo_h, out_ptr, 0, 0);
+      __lsx_vstelm_d(vec_lo_h, out_ptr, 0, 0);
       out_ptr += 2 * 4;
     }
     remain_k = K - loop_k;
@@ -126,7 +126,7 @@ void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
         tmp[i] = *(A + (loop_m + 1) * K + loop_k + i);
       }
       vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
-      __lsx_vstelem_d( vec_lo_h, out_ptr, 0, 0);
+      __lsx_vstelm_d( vec_lo_h, out_ptr, 0, 0);
       out_ptr += 2 * 4;
     }
   }
@@ -143,13 +143,13 @@ void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
     }
     for (; loop_k + 7 < K; loop_k += 8) {
       vec_line0_h = lsx_loadl_epi64(A + loop_m * K + loop_k);
-      __lsx_vstelem_d(vec_line0_h, out_ptr, 0, 0);
+      __lsx_vstelm_d(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 8;
     }
     for (; loop_k + 3 < K; loop_k += 4) {
       vec_line0_h =
           __lsx_vreplgr2vr_w(*(reinterpret_cast<int *>(A + loop_m * K + loop_k)));
-      __lsx_vstelem_w(vec_line0_h, out_ptr, 0, 0);
+      __lsx_vstelm_w(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 4;
     }
     remain_k = K - loop_k;
@@ -159,7 +159,7 @@ void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
         int8_t *tmp = reinterpret_cast<int8_t *>(&vec_line0_h);
         tmp[i] = *(A + loop_m * K + loop_k + i);
       }
-      __lsx_vstelem_w(vec_line0_h, out_ptr, 0, 0);
+      __lsx_vstelm_w(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 4;
     }
   }
@@ -350,13 +350,13 @@ Attention:
 
 #define STORE_4x2                                                      \
   {                                                                    \
-    __lsx_vstelem_d(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
+    __lsx_vstelm_d(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
     out_ptr += 2 * 4;                                                  \
   }
 
 #define STORE_4x1                                                     \
   {                                                                   \
-    __lsx_vstelem_w(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
+    __lsx_vstelm_w(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
     out_ptr += 4;                                                     \
   }
 
@@ -674,14 +674,14 @@ void packB_i82u8_notrans(
   __lsx_vst(veci_line[1], out_ptr + stride + (out_offt)*16, 0);
 
 #define TRANSPOSE_STORE_2x16(out_offt)                                       \
-  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                            \
-  __lsx_vstelem_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);                                            \
-  __lsx_vstelem_d(veci_line[2], out_ptr + (out_offt)*8 + 16, 0, 0);                                            \
-  __lsx_vstelem_d(veci_line[3], out_ptr + (out_offt)*8 + 24, 0, 0);
+  __lsx_vstelm_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                            \
+  __lsx_vstelm_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);                                            \
+  __lsx_vstelm_d(veci_line[2], out_ptr + (out_offt)*8 + 16, 0, 0);                                            \
+  __lsx_vstelm_d(veci_line[3], out_ptr + (out_offt)*8 + 24, 0, 0);
 
 #define TRANSPOSE_STORE_2x8(out_offt)                                       \
-  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                           \
-  __lsx_vstelem_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);
+  __lsx_vstelm_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                           \
+  __lsx_vstelm_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);
 
 #define TRANSPOSE_4x16(in_offt, out_offt, stride)                        \
   vec_line[0] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 0) + loop_k, 0);                         \
@@ -791,7 +791,7 @@ void packB_i82u8_notrans(
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]);     \
   veci_line[0] = (__m128i)vec_line[0];                              \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                               \
-  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);
+  __lsx_vstelm_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);
 
 #define TRANSPOSE_2xX(num, in_offt, out_offt)                              \
   {                                                                        \
@@ -806,7 +806,7 @@ void packB_i82u8_notrans(
     _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]); \
     veci_line[0] = (__m128i)vec_line[0];                          \
     INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                           \
-    __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8), 0, 0);                                        \
+    __lsx_vstelm_d(veci_line[0], out_ptr + (out_offt)*8), 0, 0);                                        \
   }
 
 void packB_i82u8_trans(
@@ -1012,14 +1012,14 @@ void packB_i82u8_trans(
     for (; loop_k + 7 < K; loop_k += 8) {
       veci_line[0] = __lsx_vreplgr2vr_d(b_ptr + step * loop_n + loop_k);
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      __lsx_vstelem_d(veci_line[0], out_ptr, 0, 0);
+      __lsx_vstelm_d(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 8;
     }
     for (; loop_k + 3 < K; loop_k += 4) {
       veci_line[0] = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(b_ptr + step * loop_n + loop_k)));
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      __lsx_vstelem_w(veci_line[0], out_ptr, 0, 0);
+      __lsx_vstelm_w(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 4;
     }
     remain_k = K - loop_k;
@@ -1030,7 +1030,7 @@ void packB_i82u8_trans(
         vec_tmp[i] = *(b_ptr + step * loop_n + loop_k + i);
       }
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      __lsx_vstelem_w(veci_line[0], out_ptr, 0, 0);
+      __lsx_vstelm_w(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 4;
     }
   }
