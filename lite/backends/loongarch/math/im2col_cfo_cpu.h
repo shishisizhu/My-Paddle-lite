@@ -19,7 +19,7 @@ limitations under the License. */
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 /**
@@ -251,6 +251,6 @@ inline void im2col_sh1sw1dh1dw1ph1pw1(const lite::Tensor& im,
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

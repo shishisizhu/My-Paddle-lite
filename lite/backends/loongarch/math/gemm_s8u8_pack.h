@@ -15,10 +15,10 @@ limitations under the License. */
 #pragma once
 
 #include <stdint.h>
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 #define TRANS_INT8_UINT8_OFFT (128)
@@ -32,6 +32,6 @@ void gemm_s8u8s8_runpackB(
     int N, int K, int stride, const int8_t* B, uint8_t* pack_B, bool is_trans);
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

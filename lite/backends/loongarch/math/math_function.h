@@ -16,7 +16,7 @@ limitations under the License. */
 #include <cmath>
 #include <vector>
 
-#include "lite/backends/x86/fluid/float16.h"
+#include "lite/backends/loongarch/fluid/float16.h"
 #include "lite/core/context.h"
 #include "lite/core/op_lite.h"
 #include "lite/core/tensor.h"
@@ -25,12 +25,12 @@ limitations under the License. */
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 // template <typename T, int Rank>
 //    struct Transpose {
-//        void operator()(const lite::Context<Target::kX86> &context)
+//        void operator()(const lite::Context<Target::kLoongArch> &context)
 //    };
 
 template <lite::TargetType Target, typename T, int Rank>
@@ -88,6 +88,6 @@ struct RowwiseMean {
 };
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

@@ -12,17 +12,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#ifdef __AVX2__
 
-#include "lite/backends/x86/math/gemm_s8u8_pack.h"
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <smmintrin.h>
-#include <tmmintrin.h>
+
+#include "lite/backends/loongarch/math/gemm_s8u8_pack.h"
+#include <lasxintrin.h>
+#include <lsxintrin.h>
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 #ifndef _MSC_VER
@@ -31,59 +29,45 @@ typedef long long int __int64;  // NOLINT
 
 // PrePack A
 #define TRANSPOSEA_4x16                                            \
-  vec_12 = _mm_unpacklo_epi8(vec_line[0], vec_line[1]);            \
-  vec_23 = _mm_unpacklo_epi8(vec_line[2], vec_line[3]);            \
-  vec_out = _mm_unpacklo_epi16(vec_12, vec_23);                    \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),                \
-                _mm_castsi128_ps(vec_out));                        \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 2),  \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));     \
-  vec_out = _mm_unpackhi_epi16(vec_12, vec_23);                    \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 4),  \
-                _mm_castsi128_ps(vec_out));                        \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 6),  \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));     \
-  vec_12 = _mm_unpackhi_epi8(vec_line[0], vec_line[1]);            \
-  vec_23 = _mm_unpackhi_epi8(vec_line[2], vec_line[3]);            \
-  vec_out = _mm_unpacklo_epi16(vec_12, vec_23);                    \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 8),  \
-                _mm_castsi128_ps(vec_out));                        \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 10), \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));     \
-  vec_out = _mm_unpackhi_epi16(vec_12, vec_23);                    \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 12), \
-                _mm_castsi128_ps(vec_out));                        \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 14), \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));
+  vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);            \
+  vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);            \
+  vec_out = __lsx_vilvl_h(vec_23, vec_12);                    \
+  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);                        \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8)), out_ptr + K_align * 2, 0, 0);  \
+  vec_out = __lsx_vilvh_h(vec_23, vec_12);                    \
+  __lsx_vstelem_d(vec_out, out_ptr + K_align * 4, 0);                        \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6, 0, 0);     \
+  vec_12 = __lsx_vilvh_b(vec_line[1], vec_line[0]);            \
+  vec_23 = __lsx_vilvh_b(vec_line[3], vec_line[2]);            \
+  vec_out = __lsx_vilvl_h(vec_23, vec_12);                    \
+  __lsx_vstelem_d(vec_out, out_ptr + K_align * 8, 0, 0);                        \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 10, 0, 0);     \
+  vec_out = __lsx_vilvh_h(vec_23, vec_12);                    \
+  __lsx_vstelem_d(vec_out, out_ptr + K_align * 12, 0, 0);                        \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 14, 0, 0);
 
 #define TRANSPOSEA_4x8                                            \
-  vec_12 = _mm_unpacklo_epi8(vec_line[0], vec_line[1]);           \
-  vec_23 = _mm_unpacklo_epi8(vec_line[2], vec_line[3]);           \
-  vec_out = _mm_unpacklo_epi16(vec_12, vec_23);                   \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),               \
-                _mm_castsi128_ps(vec_out));                       \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 2), \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));    \
-  vec_out = _mm_unpackhi_epi16(vec_12, vec_23);                   \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 4), \
-                _mm_castsi128_ps(vec_out));                       \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 6), \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));
+  vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);           \
+  vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);           \
+  vec_out = __lsx_vilvl_h(vec_23, vec_12);                   \
+  __lsx_vstelem_d( vec_out, out_ptr, 0, 0);                       \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);    \
+  vec_out = __lsx_vilvh_h(vec_23, vec_12);                   \
+  __lsx_vstelem_d(vec_out, out_ptr + K_align * 4, 0, 0);                       \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 6), 0, 0);
 
 #define TRANSPOSEA_4x4                                            \
-  vec_12 = _mm_unpacklo_epi8(vec_line[0], vec_line[1]);           \
-  vec_23 = _mm_unpacklo_epi8(vec_line[2], vec_line[3]);           \
-  vec_out = _mm_unpacklo_epi16(vec_12, vec_23);                   \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),               \
-                _mm_castsi128_ps(vec_out));                       \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr + K_align * 2), \
-                _mm_castsi128_ps(_mm_srli_si128(vec_out, 8)));
+  vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]);           \
+  vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]);           \
+  vec_out = __lsx_vilvl_h(vec_23, vec_12);                   \
+  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);                       \
+  __lsx_vstelem_d(lsx_srli_si128(vec_out, 8), out_ptr + K_align * 2, 0, 0);
 
 #define TRANSPOSEA_4x2                                  \
-  vec_12 = _mm_unpacklo_epi8(vec_line[0], vec_line[1]); \
-  vec_23 = _mm_unpacklo_epi8(vec_line[2], vec_line[3]); \
-  vec_out = _mm_unpacklo_epi16(vec_12, vec_23);         \
-  _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr), _mm_castsi128_ps(vec_out));
+  vec_12 = __lsx_vilvl_b(vec_line[1], vec_line[0]); \
+  vec_23 = __lsx_vilvl_b(vec_line[3], vec_line[2]); \
+  vec_out = __lsx_vilvl_h(vec_23, vec_12);         \
+  __lsx_vstelem_d(vec_out, out_ptr, 0, 0);
 
 // if K is not 4-aligned, need to pad zero
 void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
@@ -98,110 +82,94 @@ void packA_i8_notrans(int M, int K, const int8_t *AA, int8_t *pack_A) {
 
   for (loop_m = 0; loop_m + 1 < M; loop_m += 2) {
     for (loop_k = 0; loop_k + 31 < K; loop_k += 32) {
-      vec_line0 = _mm256_loadu_si256(
-          reinterpret_cast<__m256i const *>(A + loop_m * K + loop_k));
-      vec_line1 = _mm256_loadu_si256(
-          reinterpret_cast<__m256i const *>(A + (loop_m + 1) * K + loop_k));
-      vec_lo = _mm256_unpacklo_epi32(vec_line0, vec_line1);
-      vec_hi = _mm256_unpackhi_epi32(vec_line0, vec_line1);
-      _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr),
-                          _mm256_permute2x128_si256(vec_lo, vec_hi, 0x20));
-      _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 32),
-                          _mm256_permute2x128_si256(vec_lo, vec_hi, 0x31));
+      vec_line0 = __lasx_xvld(A + loop_m * K + loop_k, 0);
+      vec_line1 = __lasx_xvld(A + (loop_m + 1) * K + loop_k, 0);
+      vec_lo = __lasx_xvilvl_w(vec_line1, vec_line0);
+      vec_hi = __lasx_xvilvh_w(vec_line1, vec_line0);
+      __lasx_xvst(__lasx_xvpermi_q(vec_hi, vec_lo, 0x20), out_ptr, 0);
+      __lasx_xvst(__lasx_xvpermi_q(vec_hi, vec_lo, 0x31), out_ptr + 32, 0);
       out_ptr += 2 * 32;
     }
     for (; loop_k + 15 < K; loop_k += 16) {
-      vec_line0_h = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + loop_m * K + loop_k));
-      vec_line1_h = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + (loop_m + 1) * K + loop_k));
-      vec_lo_h = _mm_unpacklo_epi32(vec_line0_h, vec_line1_h);
-      vec_hi_h = _mm_unpackhi_epi32(vec_line0_h, vec_line1_h);
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr), vec_lo_h);
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr + 16), vec_hi_h);
+      vec_line0_h = __lsx_vld(A + loop_m * K + loop_k, 0);
+      vec_line1_h = __lsx_vld(A + (loop_m + 1) * K + loop_k, 0);
+      vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
+      vec_hi_h = __lsx_vilvh_w(vec_line0_h, vec_line1_h);
+      __lsx_vst(vec_lo_h, out_ptr, 0);
+      __lsx_vst(vec_hi_h, out_ptr + 16, 0);
       out_ptr += 2 * 16;
     }
     for (; loop_k + 7 < K; loop_k += 8) {
-      vec_line0_h = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + loop_m * K + loop_k));
-      vec_line1_h = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + (loop_m + 1) * K + loop_k));
-      vec_lo_h = _mm_unpacklo_epi32(vec_line0_h, vec_line1_h);
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr), vec_lo_h);
+      vec_line0_h = lsx_loadl_epi64(A + loop_m * K + loop_k);
+      vec_line1_h = lsx_loadl_epi64(A + (loop_m + 1) * K + loop_k);
+      vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
+      __lsx_vst(vec_lo_h, out_ptr, 0);
       out_ptr += 2 * 8;
     }
     for (; loop_k + 3 < K; loop_k += 4) {
       vec_line0_h =
-          _mm_set1_epi32(*(reinterpret_cast<int *>(A + loop_m * K + loop_k)));
-      vec_line1_h = _mm_set1_epi32(
+          __lsx_vreplgr2vr_w(*(reinterpret_cast<int *>(A + loop_m * K + loop_k)));
+      vec_line1_h = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(A + (loop_m + 1) * K + loop_k)));
-      vec_lo_h = _mm_unpacklo_epi32(vec_line0_h, vec_line1_h);
-      _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),
-                    _mm_castsi128_ps(vec_lo_h));
+      vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
+      __lsx_vstelem_d(vec_lo_h, out_ptr, 0, 0);
       out_ptr += 2 * 4;
     }
     remain_k = K - loop_k;
     if (remain_k > 0) {
-      vec_line0_h = _mm_setzero_si128();
-      vec_line1_h = _mm_setzero_si128();
+      vec_line0_h = __lsx_vreplgr2vr_w(0);
+      vec_line1_h = __lsx_vreplgr2vr_w(0);
       for (int i = 0; i < remain_k; i++) {
         int8_t *tmp = reinterpret_cast<int8_t *>(&vec_line0_h);
         tmp[i] = *(A + loop_m * K + loop_k + i);
         tmp = reinterpret_cast<int8_t *>(&vec_line1_h);
         tmp[i] = *(A + (loop_m + 1) * K + loop_k + i);
       }
-      vec_lo_h = _mm_unpacklo_epi32(vec_line0_h, vec_line1_h);
-      _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),
-                    _mm_castsi128_ps(vec_lo_h));
+      vec_lo_h = __lsx_vilvl_w(vec_line0_h, vec_line1_h);
+      __lsx_vstelem_d( vec_lo_h, out_ptr, 0, 0);
       out_ptr += 2 * 4;
     }
   }
   for (; loop_m < M; loop_m++) {
     for (loop_k = 0; loop_k + 31 < K; loop_k += 32) {
-      vec_line0 = _mm256_loadu_si256(
-          reinterpret_cast<__m256i const *>(A + loop_m * K + loop_k));
-      _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr), vec_line0);
+      vec_line0 = __lasx_xvld(A + loop_m * K + loop_k, 0);
+      __lasx_xvst(vec_line0, out_ptr, 0);
       out_ptr += 32;
     }
     for (; loop_k + 15 < K; loop_k += 16) {
-      vec_line0_h = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + loop_m * K + loop_k));
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr), vec_line0_h);
+      vec_line0_h = __lsx_vld(A + loop_m * K + loop_k, 0);
+      __lsx_vst(vec_line0_h, out_ptr, 0);
       out_ptr += 16;
     }
     for (; loop_k + 7 < K; loop_k += 8) {
-      vec_line0_h = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + loop_m * K + loop_k));
-      _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),
-                    _mm_castsi128_ps(vec_line0_h));
+      vec_line0_h = lsx_loadl_epi64(A + loop_m * K + loop_k);
+      __lsx_vstelem_d(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 8;
     }
     for (; loop_k + 3 < K; loop_k += 4) {
       vec_line0_h =
-          _mm_set1_epi32(*(reinterpret_cast<int *>(A + loop_m * K + loop_k)));
-      _mm_store_ss(reinterpret_cast<float *>(out_ptr),
-                   _mm_castsi128_ps(vec_line0_h));
+          __lsx_vreplgr2vr_w(*(reinterpret_cast<int *>(A + loop_m * K + loop_k)));
+      __lsx_vstelem_w(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 4;
     }
     remain_k = K - loop_k;
     if (remain_k > 0) {
-      vec_line0_h = _mm_setzero_si128();
+      vec_line0_h = __lsx_vreplgr2vr_w(0);
       for (int i = 0; i < remain_k; i++) {
         int8_t *tmp = reinterpret_cast<int8_t *>(&vec_line0_h);
         tmp[i] = *(A + loop_m * K + loop_k + i);
       }
-      _mm_store_ss(reinterpret_cast<float *>(out_ptr),
-                   _mm_castsi128_ps(vec_line0_h));
+      __lsx_vstelem_w(vec_line0_h, out_ptr, 0, 0);
       out_ptr += 4;
     }
   }
 }
 
 #define ZERO_ALL                     \
-  vec_line[0] = _mm_setzero_si128(); \
-  vec_line[1] = _mm_setzero_si128(); \
-  vec_line[2] = _mm_setzero_si128(); \
-  vec_line[3] = _mm_setzero_si128();
+  vec_line[0] = __lsx_vreplgr2vr_w(0); \
+  vec_line[1] = __lsx_vreplgr2vr_w(0); \
+  vec_line[2] = __lsx_vreplgr2vr_w(0); \
+  vec_line[3] = __lsx_vreplgr2vr_w(0);
 
 void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
   int8_t *out_ptr = pack_A;
@@ -219,22 +187,17 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
 
   for (loop_m = 0; loop_m + 15 < M; loop_m += 16) {
     for (loop_k = 0; loop_k + 3 < K; loop_k += 4) {
-      vec_line[0] = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + loop_k * M + loop_m));
-      vec_line[1] = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 1) * M + loop_m));
-      vec_line[2] = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 2) * M + loop_m));
-      vec_line[3] = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 3) * M + loop_m));
+      vec_line[0] = __lsx_vld(A + loop_k * M + loop_m, 0);
+      vec_line[1] = __lsx_vld(A + (loop_k + 1) * M + loop_m, 0);
+      vec_line[2] = __lsx_vld(A + (loop_k + 2) * M + loop_m, 0);
+      vec_line[3] = __lsx_vld(A + (loop_k + 3) * M + loop_m, 0);
       TRANSPOSEA_4x16 out_ptr += 2 * 4;
     }
     remain_k = K - loop_k;
     if (remain_k > 0) {
       ZERO_ALL
       for (int i = 0; i < remain_k; i++) {
-        vec_line[i] = _mm_loadu_si128(
-            reinterpret_cast<__m128i const *>(A + (loop_k + i) * M + loop_m));
+        vec_line[i] = __lsx_vld(A + (loop_k + i) * M + loop_m, 0);
       }
       TRANSPOSEA_4x16 out_ptr += 2 * 4;
     }
@@ -242,22 +205,17 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
   }
   for (; loop_m + 7 < M; loop_m += 8) {
     for (loop_k = 0; loop_k + 3 < K; loop_k += 4) {
-      vec_line[0] = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + loop_k * M + loop_m));
-      vec_line[1] = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 1) * M + loop_m));
-      vec_line[2] = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 2) * M + loop_m));
-      vec_line[3] = _mm_loadl_epi64(
-          reinterpret_cast<__m128i const *>(A + (loop_k + 3) * M + loop_m));
+      vec_line[0] = lsx_loadl_epi64(A + loop_k * M + loop_m);
+      vec_line[1] = lsx_loadl_epi64(A + (loop_k + 1) * M + loop_m);
+      vec_line[2] = lsx_loadl_epi64(A + (loop_k + 2) * M + loop_m);
+      vec_line[3] = lsx_loadl_epi64(A + (loop_k + 3) * M + loop_m);
       TRANSPOSEA_4x8 out_ptr += 2 * 4;
     }
     remain_k = K - loop_k;
     if (remain_k > 0) {
       ZERO_ALL
       for (int i = 0; i < remain_k; i++) {
-        vec_line[i] = _mm_loadl_epi64(
-            reinterpret_cast<__m128i const *>(A + (loop_k + i) * M + loop_m));
+        vec_line[i] = lsx_loadl_epi64(A + (loop_k + i) * M + loop_m);
       }
       TRANSPOSEA_4x8 out_ptr += 2 * 4;
     }
@@ -266,12 +224,12 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
   for (; loop_m + 3 < M; loop_m += 4) {
     for (loop_k = 0; loop_k + 3 < K; loop_k += 4) {
       vec_line[0] =
-          _mm_set1_epi32(*(reinterpret_cast<int *>(A + loop_k * M + loop_m)));
-      vec_line[1] = _mm_set1_epi32(
+          __lsx_vreplgr2vr_w(*(reinterpret_cast<int *>(A + loop_k * M + loop_m)));
+      vec_line[1] = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(A + (loop_k + 1) * M + loop_m)));
-      vec_line[2] = _mm_set1_epi32(
+      vec_line[2] = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(A + (loop_k + 2) * M + loop_m)));
-      vec_line[3] = _mm_set1_epi32(
+      vec_line[3] = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(A + (loop_k + 3) * M + loop_m)));
       TRANSPOSEA_4x4 out_ptr += 2 * 4;
     }
@@ -279,7 +237,7 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
     if (remain_k > 0) {
       ZERO_ALL
       for (int i = 0; i < remain_k; i++) {
-        vec_line[i] = _mm_set1_epi32(
+        vec_line[i] = __lsx_vreplgr2vr_w(
             *(reinterpret_cast<int *>(A + (loop_k + i) * M + loop_m)));
       }
       TRANSPOSEA_4x4 out_ptr += 2 * 4;
@@ -288,13 +246,13 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
   }
   for (; loop_m + 1 < M; loop_m += 2) {
     for (loop_k = 0; loop_k + 3 < K; loop_k += 4) {
-      vec_line[0] = _mm_set1_epi16(
+      vec_line[0] = __lsx_vreplgr2vr_h(
           *(reinterpret_cast<int16_t *>(A + loop_k * M + loop_m)));
-      vec_line[1] = _mm_set1_epi16(
+      vec_line[1] = __lsx_vreplgr2vr_h(
           *(reinterpret_cast<int16_t *>(A + (loop_k + 1) * M + loop_m)));
-      vec_line[2] = _mm_set1_epi16(
+      vec_line[2] = __lsx_vreplgr2vr_h(
           *(reinterpret_cast<int16_t *>(A + (loop_k + 2) * M + loop_m)));
-      vec_line[3] = _mm_set1_epi16(
+      vec_line[3] = __lsx_vreplgr2vr_h(
           *(reinterpret_cast<int16_t *>(A + (loop_k + 3) * M + loop_m)));
       TRANSPOSEA_4x2 out_ptr += 2 * 4;
     }
@@ -302,7 +260,7 @@ void packA_i8_trans(int M, int K, const int8_t *AA, int8_t *pack_A) {
     if (remain_k > 0) {
       ZERO_ALL
       for (int i = 0; i < remain_k; i++) {
-        vec_line[i] = _mm_set1_epi16(
+        vec_line[i] = __lsx_vreplgr2vr_h(
             *(reinterpret_cast<int16_t *>(A + (loop_k + i) * M + loop_m)));
       }
       TRANSPOSEA_4x2 out_ptr += 2 * 4;
@@ -338,145 +296,132 @@ Attention:
 // No Trans
 #define INT8_ADD_128(in, vec_128_s16)                                        \
   {                                                                          \
-    __m256i in_lo = _mm256_adds_epi16(                                       \
-        vec_128_s16, _mm256_cvtepi8_epi16(_mm256_castsi256_si128(in)));      \
-    __m256i in_hi = _mm256_adds_epi16(                                       \
-        vec_128_s16, _mm256_cvtepi8_epi16(_mm256_extracti128_si256(in, 1))); \
-    in_lo = _mm256_packus_epi16(in_lo, in_hi);                               \
-    in = _mm256_permute4x64_epi64(in_lo, 216);                               \
+    __m256i in_lo = __lasx_xvadd_h(                                       \
+        vec_128_s16, __lasx_vext2xv_h_b( lasx_set_q(__lsx_vreplgr2vr_w(0), lasx_extracti128_lo(in)))); \
+    __m256i in_hi = __lasx_xvadd_h(                                       \
+        vec_128_s16, __lasx_vext2xv_h_b( lasx_set_q(__lsx_vreplgr2vr_w(0), lasx_extracti128_hi(in)))); \
+    in_lo = __lasx_xvpickev_b(in_lo, in_hi);                               \
+    in = __lasx_xvpermi_d(in_lo, 216);                               \
   }
 
 #define TRANSPOSE_4x32                                              \
-  vec_l01 = _mm256_unpacklo_epi8(vec_line0, vec_line1);             \
-  vec_l23 = _mm256_unpacklo_epi8(vec_line2, vec_line3);             \
-  vec_h01 = _mm256_unpackhi_epi8(vec_line0, vec_line1);             \
-  vec_h23 = _mm256_unpackhi_epi8(vec_line2, vec_line3);             \
-  vec_l03 = _mm256_unpacklo_epi16(vec_l01, vec_l23);                \
-  vec_h03 = _mm256_unpackhi_epi16(vec_l01, vec_l23);                \
-  vec_l03_1 = _mm256_unpacklo_epi16(vec_h01, vec_h23);              \
-  vec_h03_1 = _mm256_unpackhi_epi16(vec_h01, vec_h23);              \
-  vec_out0 = _mm256_permute2x128_si256(vec_l03, vec_h03, 0x20);     \
+  vec_l01 = __lasx_xvilvl_b(vec_line0, vec_line1);             \
+  vec_l23 = __lasx_xvilvl_b(vec_line2, vec_line3);             \
+  vec_h01 = __lasx_xvilvh_b(vec_line0, vec_line1);             \
+  vec_h23 = __lasx_xvilvh_b(vec_line2, vec_line3);             \
+  vec_l03 = __lasx_xvilvl_h(vec_l01, vec_l23);                \
+  vec_h03 = __lasx_xvilvh_h(vec_l01, vec_l23);                \
+  vec_l03_1 = __lasx_xvilvl_h(vec_h01, vec_h23);              \
+  vec_h03_1 = __lasx_xvilvh_h(vec_h01, vec_h23);              \
+  vec_out0 = __lasx_xvpermi_q(vec_h03, vec_l03, 0x20);     \
   INT8_ADD_128(vec_out0, vec_128_s16)                               \
-  vec_out1 = _mm256_permute2x128_si256(vec_l03_1, vec_h03_1, 0x20); \
+  vec_out1 = __lasx_xvpermi_q(vec_h03_1, vec_l03_1, 0x20); \
   INT8_ADD_128(vec_out1, vec_128_s16)                               \
-  vec_out2 = _mm256_permute2x128_si256(vec_l03, vec_h03, 0x31);     \
+  vec_out2 = __lasx_xvpermi_q(vec_h03, vec_l03, 0x31);     \
   INT8_ADD_128(vec_out2, vec_128_s16)                               \
-  vec_out3 = _mm256_permute2x128_si256(vec_l03_1, vec_h03_1, 0x31); \
+  vec_out3 = __lasx_xvpermi_q(vec_h03_1, vec_l03_1, 0x31); \
   INT8_ADD_128(vec_out3, vec_128_s16)
 
 #define STORE_4x32                                                          \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr), vec_out0);      \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 32), vec_out1); \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 64), vec_out2); \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 96), vec_out3); \
+  __lasx_xvst(vec_out0, out_ptr, 0);      \
+  __lasx_xvst(vec_out1, out_ptr + 32, 0); \
+  __lasx_xvst(vec_out2, out_ptr + 64, 0); \
+  __lasx_xvst(vec_out3, out_ptr + 96, 0); \
   out_ptr += 32 * 4;
 
 #define STORE_4x24                                                          \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr), vec_out0);      \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 32), vec_out1); \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 64), vec_out2); \
+  __lasx_xvst(vec_out0, out_ptr, 0);      \
+  __lasx_xvst(vec_out1, out_ptr + 32, 0); \
+  __lasx_xvst(vec_out2, out_ptr + 64, 0); \
   out_ptr += 24 * 4;
 
 #define STORE_4x16                                                          \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr), vec_out0);      \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr + 32), vec_out1); \
+  __lasx_xvst(vec_out0, out_ptr, 0);      \
+  __lasx_xvst(vec_out1, out_ptr + 32, 0); \
   out_ptr += 16 * 4;
 
 #define STORE_4x8                                                      \
-  _mm256_storeu_si256(reinterpret_cast<__m256i *>(out_ptr), vec_out0); \
+  __lasx_xvst(vec_out0, out_ptr, 0); \
   out_ptr += 8 * 4;
 
 #define STORE_4x4                                        \
-  _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr), \
-                   _mm256_castsi256_si128(vec_out0));    \
+  __lsx_vst(lasx_extracti128_lo(vec_out0), out_ptr, 0);    \
   out_ptr += 4 * 4;
 
 #define STORE_4x2                                                      \
   {                                                                    \
-    _mm_storel_pi(reinterpret_cast<__m64 *>(out_ptr),                  \
-                  _mm_castsi128_ps(_mm256_castsi256_si128(vec_out0))); \
+    __lsx_vstelem_d(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
     out_ptr += 2 * 4;                                                  \
   }
 
 #define STORE_4x1                                                     \
   {                                                                   \
-    _mm_store_ss(reinterpret_cast<float *>(out_ptr),                  \
-                 _mm_castsi128_ps(_mm256_castsi256_si128(vec_out0))); \
+    __lsx_vstelem_w(lasx_extracti128_lo(vec_out0), out_ptr, 0, 0); \
     out_ptr += 4;                                                     \
   }
 
 #define LOAD_32                                                             \
-  vec_line0 = _mm256_loadu_si256(                                           \
-      reinterpret_cast<const __m256i *>(b_ptr + loop_k * stride + loop_n)); \
-  vec_line1 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(         \
-      b_ptr + (loop_k + 1) * stride + loop_n));                             \
-  vec_line2 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(         \
-      b_ptr + (loop_k + 2) * stride + loop_n));                             \
-  vec_line3 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(         \
-      b_ptr + (loop_k + 3) * stride + loop_n));
+  vec_line0 = __lasx_xvld(b_ptr + loop_k * stride + loop_n, 0); \
+  vec_line1 = __lasx_xvld(b_ptr + (loop_k + 1) * stride + loop_n, 0);                             \
+  vec_line2 = __lasx_xvld(b_ptr + (loop_k + 2) * stride + loop_n, 0);                             \
+  vec_line3 = __lasx_xvld(b_ptr + (loop_k + 3) * stride + loop_n, 0);
 
 #define LOAD_EPI32(num)                                                      \
-  vec_line0 = _mm256_maskload_epi32(                                         \
+  vec_line0 = lasx_maskload_epi32(                                         \
       reinterpret_cast<const int *>(b_ptr + loop_k * stride + loop_n),       \
       vec_mask_##num);                                                       \
-  vec_line1 = _mm256_maskload_epi32(                                         \
+  vec_line1 = lasx_maskload_epi32(                                         \
       reinterpret_cast<const int *>(b_ptr + (loop_k + 1) * stride + loop_n), \
       vec_mask_##num);                                                       \
-  vec_line2 = _mm256_maskload_epi32(                                         \
+  vec_line2 = lasx_maskload_epi32(                                         \
       reinterpret_cast<const int *>(b_ptr + (loop_k + 2) * stride + loop_n), \
       vec_mask_##num);                                                       \
-  vec_line3 = _mm256_maskload_epi32(                                         \
+  vec_line3 = lasx_maskload_epi32(                                         \
       reinterpret_cast<const int *>(b_ptr + (loop_k + 3) * stride + loop_n), \
       vec_mask_##num);
 
 #define LOAD_EPI64(num)                                                    \
-  vec_line0 = _mm256_maskload_epi64(                                       \
+  vec_line0 = lasx_maskload_epi64(                                       \
       reinterpret_cast<const __int64 *>(b_ptr + loop_k * stride + loop_n), \
       vec_mask_##num);                                                     \
   vec_line1 =                                                              \
-      _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+      lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                 b_ptr + (loop_k + 1) * stride + loop_n),   \
                             vec_mask_##num);                               \
   vec_line2 =                                                              \
-      _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+      lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                 b_ptr + (loop_k + 2) * stride + loop_n),   \
                             vec_mask_##num);                               \
   vec_line3 =                                                              \
-      _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+      lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                 b_ptr + (loop_k + 3) * stride + loop_n),   \
                             vec_mask_##num);
 
 #define LOAD_REMAIN(remain)                                             \
   switch (remain) {                                                     \
     case 1:                                                             \
-      vec_line0 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + loop_k * stride + loop_n));                           \
-      vec_line1 = _mm256_setzero_si256();                               \
-      vec_line2 = _mm256_setzero_si256();                               \
-      vec_line3 = _mm256_setzero_si256();                               \
+      vec_line0 = __lasx_xvld(b_ptr + loop_k * stride + loop_n, 0);                           \
+      vec_line1 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                               \
       break;                                                            \
     case 2:                                                             \
-      vec_line0 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + loop_k * stride + loop_n));                           \
-      vec_line1 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + (loop_k + 1) * stride + loop_n));                     \
-      vec_line2 = _mm256_setzero_si256();                               \
-      vec_line3 = _mm256_setzero_si256();                               \
+      vec_line0 = __lasx_xvld(b_ptr + loop_k * stride + loop_n, 0);                           \
+      vec_line1 = __lasx_xvld(b_ptr + (loop_k + 1) * stride + loop_n, 0);                     \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                               \
       break;                                                            \
     case 3:                                                             \
-      vec_line0 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + loop_k * stride + loop_n));                           \
-      vec_line1 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + (loop_k + 1) * stride + loop_n));                     \
-      vec_line2 = _mm256_loadu_si256(reinterpret_cast<const __m256i *>( \
-          b_ptr + (loop_k + 2) * stride + loop_n));                     \
-      vec_line3 = _mm256_setzero_si256();                               \
+      vec_line0 = __lasx_xvld(b_ptr + loop_k * stride + loop_n, 0);                           \
+      vec_line1 = __lasx_xvld(b_ptr + (loop_k + 1) * stride + loop_n, 0);                     \
+      vec_line2 = __lasx_xvld(b_ptr + (loop_k + 2) * stride + loop_n, 0);                     \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                               \
       break;                                                            \
     case 0:                                                             \
-      vec_line0 = _mm256_setzero_si256();                               \
-      vec_line1 = _mm256_setzero_si256();                               \
-      vec_line2 = _mm256_setzero_si256();                               \
-      vec_line3 = _mm256_setzero_si256();                               \
+      vec_line0 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line1 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                               \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                               \
       break;                                                            \
     default:                                                            \
       break;                                                            \
@@ -485,37 +430,37 @@ Attention:
 #define LOAD_REMAIN_EPI64(remain, num)                                         \
   switch (remain) {                                                            \
     case 1:                                                                    \
-      vec_line0 = _mm256_maskload_epi64(                                       \
+      vec_line0 = lasx_maskload_epi64(                                       \
           reinterpret_cast<const __int64 *>(b_ptr + loop_k * stride + loop_n), \
           vec_mask_##num);                                                     \
-      vec_line1 = _mm256_setzero_si256();                                      \
-      vec_line2 = _mm256_setzero_si256();                                      \
-      vec_line3 = _mm256_setzero_si256();                                      \
+      vec_line1 = __lasx_xvreplgr2vr_d(0);                                      \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                                      \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                      \
       break;                                                                   \
     case 2:                                                                    \
-      vec_line0 = _mm256_maskload_epi64(                                       \
+      vec_line0 = lasx_maskload_epi64(                                       \
           reinterpret_cast<const __int64 *>(b_ptr + loop_k * stride + loop_n), \
           vec_mask_##num);                                                     \
       vec_line1 =                                                              \
-          _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+          lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                     b_ptr + (loop_k + 1) * stride + loop_n),   \
                                 vec_mask_##num);                               \
-      vec_line2 = _mm256_setzero_si256();                                      \
-      vec_line3 = _mm256_setzero_si256();                                      \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                                      \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                      \
       break;                                                                   \
     case 3:                                                                    \
-      vec_line0 = _mm256_maskload_epi64(                                       \
+      vec_line0 = lasx_maskload_epi64(                                       \
           reinterpret_cast<const __int64 *>(b_ptr + loop_k * stride + loop_n), \
           vec_mask_##num);                                                     \
       vec_line1 =                                                              \
-          _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+          lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                     b_ptr + (loop_k + 1) * stride + loop_n),   \
                                 vec_mask_##num);                               \
       vec_line2 =                                                              \
-          _mm256_maskload_epi64(reinterpret_cast<const __int64 *>(             \
+          lasx_maskload_epi64(reinterpret_cast<const __int64 *>(             \
                                     b_ptr + (loop_k + 2) * stride + loop_n),   \
                                 vec_mask_##num);                               \
-      vec_line3 = _mm256_setzero_si256();                                      \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                      \
       break;                                                                   \
     default:                                                                   \
       break;                                                                   \
@@ -524,37 +469,37 @@ Attention:
 #define LOAD_REMAIN_EPI32(remain, num)                                       \
   switch (remain) {                                                          \
     case 1:                                                                  \
-      vec_line0 = _mm256_maskload_epi32(                                     \
+      vec_line0 = lasx_maskload_epi32(                                     \
           reinterpret_cast<const int *>(b_ptr + loop_k * stride + loop_n),   \
           vec_mask_##num);                                                   \
-      vec_line1 = _mm256_setzero_si256();                                    \
-      vec_line2 = _mm256_setzero_si256();                                    \
-      vec_line3 = _mm256_setzero_si256();                                    \
+      vec_line1 = __lasx_xvreplgr2vr_d(0);                                    \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                                    \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                    \
       break;                                                                 \
     case 2:                                                                  \
-      vec_line0 = _mm256_maskload_epi32(                                     \
+      vec_line0 = lasx_maskload_epi32(                                     \
           reinterpret_cast<const int *>(b_ptr + loop_k * stride + loop_n),   \
           vec_mask_##num);                                                   \
       vec_line1 =                                                            \
-          _mm256_maskload_epi32(reinterpret_cast<const int *>(               \
+          lasx_maskload_epi32(reinterpret_cast<const int *>(               \
                                     b_ptr + (loop_k + 1) * stride + loop_n), \
                                 vec_mask_##num);                             \
-      vec_line2 = _mm256_setzero_si256();                                    \
-      vec_line3 = _mm256_setzero_si256();                                    \
+      vec_line2 = __lasx_xvreplgr2vr_d(0);                                    \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                    \
       break;                                                                 \
     case 3:                                                                  \
-      vec_line0 = _mm256_maskload_epi32(                                     \
+      vec_line0 = lasx_maskload_epi32(                                     \
           reinterpret_cast<const int *>(b_ptr + loop_k * stride + loop_n),   \
           vec_mask_##num);                                                   \
       vec_line1 =                                                            \
-          _mm256_maskload_epi32(reinterpret_cast<const int *>(               \
+          lasx_maskload_epi32(reinterpret_cast<const int *>(               \
                                     b_ptr + (loop_k + 1) * stride + loop_n), \
                                 vec_mask_##num);                             \
       vec_line2 =                                                            \
-          _mm256_maskload_epi32(reinterpret_cast<const int *>(               \
+          lasx_maskload_epi32(reinterpret_cast<const int *>(               \
                                     b_ptr + (loop_k + 2) * stride + loop_n), \
                                 vec_mask_##num);                             \
-      vec_line3 = _mm256_setzero_si256();                                    \
+      vec_line3 = __lasx_xvreplgr2vr_d(0);                                    \
       break;                                                                 \
     default:                                                                 \
       break;                                                                 \
@@ -574,18 +519,18 @@ void packB_i82u8_notrans(
   __m256i vec_l03, vec_h03, vec_l03_1, vec_h03_1;
   __m256i vec_out0, vec_out1, vec_out2, vec_out3;
   __m256i vec_128_s16 =
-      _mm256_set1_epi16(static_cast<int16_t>(TRANS_INT8_UINT8_OFFT));
+      __lasx_xvreplgr2vr_h(static_cast<int16_t>(TRANS_INT8_UINT8_OFFT));
 
   // mask load, store
   __m256i vec_mask_24, vec_mask_16, vec_mask_8, vec_mask_4;
   int64_t mask0[4] = {-1, -1, -1, 0};
   int mask1[8] = {-1, 0, 0, 0, 0, 0, 0, 0};
-  vec_mask_24 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(mask0));
+  vec_mask_24 = __lasx_xvld(mask0);
   mask0[2] = static_cast<int64_t>(0);
-  vec_mask_16 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(mask0));
+  vec_mask_16 = __lasx_xvld(mask0);
   mask0[1] = static_cast<int64_t>(0);
-  vec_mask_8 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(mask0));
-  vec_mask_4 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(mask1));
+  vec_mask_8 = __lasx_xvld(mask0);
+  vec_mask_4 = __lasx_xvld(mask1);
 
   int8_t *vec_ptr[4];
   vec_ptr[0] = reinterpret_cast<int8_t *>(&vec_line0);
@@ -712,62 +657,42 @@ void packB_i82u8_notrans(
 // in0: __m128i  in1: __m256i
 #define INT8_ADD_128_HALF(in, vec_128_s16)                                     \
   {                                                                            \
-    __m256i in_256 = _mm256_adds_epi16(vec_128_s16, _mm256_cvtepi8_epi16(in)); \
-    __m128i in_lo = _mm256_castsi256_si128(in_256);                            \
-    __m128i in_hi = _mm256_extractf128_si256(in_256, 1);                       \
-    in = _mm_packus_epi16(in_lo, in_hi);                                       \
+    __m256i in_256 = __lasx_xvadd_h(vec_128_s16, __lasx_vext2xv_h_b( lasx_set_q(__lsx_vreplgr2vr_w(0),in))); \
+    __m128i in_lo = lasx_extracti128_lo(in_256);                            \
+    __m128i in_hi = lasx_extracti128_hi(in_256);                       \
+    in = __lsx_vpickev_b(in_hi, in_lo);                                       \
   }
 
 #define TRANSPOSE_STORE_4x16(out_offt, stride)                           \
-  _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*16), \
-                   veci_line[0]);                                        \
-  _mm_storeu_si128(                                                      \
-      reinterpret_cast<__m128i *>(out_ptr + stride + (out_offt)*16),     \
-      veci_line[1]);                                                     \
-  _mm_storeu_si128(                                                      \
-      reinterpret_cast<__m128i *>(out_ptr + stride * 2 + (out_offt)*16), \
-      veci_line[2]);                                                     \
-  _mm_storeu_si128(                                                      \
-      reinterpret_cast<__m128i *>(out_ptr + stride * 3 + (out_offt)*16), \
-      veci_line[3]);
+  __lsx_vst(veci_line[0], out_ptr + (out_offt)*16, 0);                                        \
+  __lsx_vst(veci_line[1], out_ptr + stride + (out_offt)*16, 0);                                                     \
+  __lsx_vst(veci_line[2], out_ptr + stride * 2 + (out_offt)*16, 0);                                                     \
+  __lsx_vst(veci_line[3], out_ptr + stride * 3 + (out_offt)*16, 0);
 
 #define TRANSPOSE_STORE_4x8(out_offt, stride)                            \
-  _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*16), \
-                   veci_line[0]);                                        \
-  _mm_storeu_si128(                                                      \
-      reinterpret_cast<__m128i *>(out_ptr + stride + (out_offt)*16),     \
-      veci_line[1]);
+  __lsx_vst(veci_line[0], out_ptr + (out_offt)*16, 0);                                        \
+  __lsx_vst(veci_line[1], out_ptr + stride + (out_offt)*16, 0);
 
 #define TRANSPOSE_STORE_2x16(out_offt)                                       \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8),      \
-                   veci_line[0]);                                            \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8 + 8),  \
-                   veci_line[1]);                                            \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8 + 16), \
-                   veci_line[2]);                                            \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8 + 24), \
-                   veci_line[3]);
+  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                            \
+  __lsx_vstelem_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);                                            \
+  __lsx_vstelem_d(veci_line[2], out_ptr + (out_offt)*8 + 16, 0, 0);                                            \
+  __lsx_vstelem_d(veci_line[3], out_ptr + (out_offt)*8 + 24, 0, 0);
 
 #define TRANSPOSE_STORE_2x8(out_offt)                                       \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8),     \
-                   veci_line[0]);                                           \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8 + 8), \
-                   veci_line[1]);
+  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);                                           \
+  __lsx_vstelem_d(veci_line[1], out_ptr + (out_offt)*8 + 8, 0, 0);
 
 #define TRANSPOSE_4x16(in_offt, out_offt, stride)                        \
-  vec_line[0] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 0) + loop_k));                         \
-  vec_line[1] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 1) + loop_k));                         \
-  vec_line[2] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 2) + loop_k));                         \
-  vec_line[3] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 3) + loop_k));                         \
+  vec_line[0] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 0) + loop_k, 0);                         \
+  vec_line[1] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 1) + loop_k, 0);                         \
+  vec_line[2] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 2) + loop_k), 0);                         \
+  vec_line[3] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 3) + loop_k), 0);                         \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]); \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                          \
-  veci_line[1] = _mm_castps_si128(vec_line[1]);                          \
-  veci_line[2] = _mm_castps_si128(vec_line[2]);                          \
-  veci_line[3] = _mm_castps_si128(vec_line[3]);                          \
+  veci_line[0] = (__m128i)vec_line[0];                          \
+  veci_line[1] = (__m128i)vec_line[1];                          \
+  veci_line[2] = (__m128i)vec_line[2];                          \
+  veci_line[3] = (__m128i)vec_line[3];                          \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                           \
   INT8_ADD_128_HALF(veci_line[1], vec_128_s16)                           \
   INT8_ADD_128_HALF(veci_line[2], vec_128_s16)                           \
@@ -775,46 +700,45 @@ void packB_i82u8_notrans(
   TRANSPOSE_STORE_4x16(out_offt, stride)
 
 #define TRANSPOSE_4x8(in_offt, out_offt, stride)                            \
-  vec_line[0] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[0] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 0) + loop_k)); \
-  vec_line[1] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[1] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 1) + loop_k)); \
-  vec_line[2] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[2] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 2) + loop_k)); \
-  vec_line[3] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[3] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 3) + loop_k)); \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]);    \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                             \
-  veci_line[1] = _mm_castps_si128(vec_line[1]);                             \
+  veci_line[0] = (__m128i)vec_line[0];                             \
+  veci_line[1] = (__m128i)vec_line[1];                             \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                              \
   INT8_ADD_128_HALF(veci_line[1], vec_128_s16)                              \
   TRANSPOSE_STORE_4x8(out_offt, stride)
 
 #define TRANSPOSE_4x4(in_offt, out_offt)                                     \
-  vec_line[0] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 0) + loop_k)))); \
-  vec_line[1] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 1) + loop_k)))); \
-  vec_line[2] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 2) + loop_k)))); \
-  vec_line[3] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 3) + loop_k)))); \
+  vec_line[0] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 0) + loop_k))); \
+  vec_line[1] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 1) + loop_k))); \
+  vec_line[2] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 2) + loop_k))); \
+  vec_line[3] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 3) + loop_k))); \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]);     \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                              \
+  veci_line[0] = (__m128i)vec_line[0];                              \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                               \
-  _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*16),     \
-                   veci_line[0]);
+  __lsx_vst( veci_line[0], out_ptr + (out_offt)*16, 0);
 
 #define TRANSPOSE_4xX(num, in_offt, out_offt)                              \
   {                                                                        \
-    vec_line[0] = _mm_set1_ps(0.f);                                        \
-    vec_line[1] = _mm_set1_ps(0.f);                                        \
-    vec_line[2] = _mm_set1_ps(0.f);                                        \
-    vec_line[3] = _mm_set1_ps(0.f);                                        \
+    vec_line[0] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
+    vec_line[1] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
+    vec_line[2] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
+    vec_line[3] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
     int8_t *tmp0 = reinterpret_cast<int8_t *>(&vec_line[0]);               \
     int8_t *tmp1 = reinterpret_cast<int8_t *>(&vec_line[1]);               \
     int8_t *tmp2 = reinterpret_cast<int8_t *>(&vec_line[2]);               \
@@ -826,22 +750,19 @@ void packB_i82u8_notrans(
       tmp3[i] = *(b_ptr + step * ((in_offt) + 3) + loop_k + i);            \
     }                                                                      \
     _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]); \
-    veci_line[0] = _mm_castps_si128(vec_line[0]);                          \
+    veci_line[0] = (__m128i)vec_line[0];                          \
     INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                           \
-    _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*16), \
-                     veci_line[0]);                                        \
+    __lsx_vst(veci_line[0], out_ptr + (out_offt)*16, 0);                                        \
   }
 
 #define TRANSPOSE_2x16(in_offt, out_offt)                                \
-  vec_line[0] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 0) + loop_k));                         \
-  vec_line[1] = _mm_loadu_ps(reinterpret_cast<float const *>(            \
-      b_ptr + step * ((in_offt) + 1) + loop_k));                         \
+  vec_line[0] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 0) + loop_k, 0);                         \
+  vec_line[1] = (__m128)__lsx_vld(b_ptr + step * ((in_offt) + 1) + loop_k), 0);                         \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]); \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                          \
-  veci_line[1] = _mm_castps_si128(vec_line[1]);                          \
-  veci_line[2] = _mm_castps_si128(vec_line[2]);                          \
-  veci_line[3] = _mm_castps_si128(vec_line[3]);                          \
+  veci_line[0] = (__m128i)vec_line[0];                          \
+  veci_line[1] = (__m128i)vec_line[1];                          \
+  veci_line[2] = (__m128i)vec_line[2];                          \
+  veci_line[3] = (__m128i)vec_line[3];                          \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                           \
   INT8_ADD_128_HALF(veci_line[1], vec_128_s16)                           \
   INT8_ADD_128_HALF(veci_line[2], vec_128_s16)                           \
@@ -849,34 +770,33 @@ void packB_i82u8_notrans(
   TRANSPOSE_STORE_2x16(out_offt)
 
 #define TRANSPOSE_2x8(in_offt, out_offt)                                    \
-  vec_line[0] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[0] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 0) + loop_k)); \
-  vec_line[1] = _mm_loadl_pi(vecf_0,                                        \
+  vec_line[1] = lsx_loadl_pi(vecf_0,                                        \
                              reinterpret_cast<__m64 const *>(               \
                                  b_ptr + step * ((in_offt) + 1) + loop_k)); \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]);    \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                             \
-  veci_line[1] = _mm_castps_si128(vec_line[1]);                             \
+  veci_line[0] = (__m128i)vec_line[0];                             \
+  veci_line[1] = (__m128i)vec_line[1];                             \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                              \
   INT8_ADD_128_HALF(veci_line[1], vec_128_s16)                              \
   TRANSPOSE_STORE_2x8(out_offt)
 
 #define TRANSPOSE_2x4(in_offt, out_offt)                                     \
-  vec_line[0] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 0) + loop_k)))); \
-  vec_line[1] = _mm_castsi128_ps(_mm_set1_epi32(                             \
-      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 1) + loop_k)))); \
+  vec_line[0] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 0) + loop_k))); \
+  vec_line[1] = __lsx_vreplgr2vr_w(                             \
+      *(reinterpret_cast<int *>(b_ptr + step * ((in_offt) + 1) + loop_k))); \
   _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]);     \
-  veci_line[0] = _mm_castps_si128(vec_line[0]);                              \
+  veci_line[0] = (__m128i)vec_line[0];                              \
   INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                               \
-  _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8),      \
-                   veci_line[0]);
+  __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8, 0, 0);
 
 #define TRANSPOSE_2xX(num, in_offt, out_offt)                              \
   {                                                                        \
-    vec_line[0] = _mm_set1_ps(0.f);                                        \
-    vec_line[1] = _mm_set1_ps(0.f);                                        \
+    vec_line[0] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
+    vec_line[1] = (__m128)__lsx_vreplgr2vr_w(0);                                        \
     int8_t *tmp0 = reinterpret_cast<int8_t *>(&vec_line[0]);               \
     int8_t *tmp1 = reinterpret_cast<int8_t *>(&vec_line[1]);               \
     for (int i = 0; i < num; i++) {                                        \
@@ -884,10 +804,9 @@ void packB_i82u8_notrans(
       tmp1[i] = *(b_ptr + step * ((in_offt) + 1) + loop_k + i);            \
     }                                                                      \
     _MM_TRANSPOSE4_PS(vec_line[0], vec_line[1], vec_line[2], vec_line[3]); \
-    veci_line[0] = _mm_castps_si128(vec_line[0]);                          \
+    veci_line[0] = (__m128i)vec_line[0];                          \
     INT8_ADD_128_HALF(veci_line[0], vec_128_s16)                           \
-    _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr + (out_offt)*8),  \
-                     veci_line[0]);                                        \
+    __lsx_vstelem_d(veci_line[0], out_ptr + (out_offt)*8), 0, 0);                                        \
   }
 
 void packB_i82u8_trans(
@@ -901,9 +820,9 @@ void packB_i82u8_trans(
 
   __m128 vec_line[4] = {0};
   __m128i veci_line[4] = {0};
-  __m128 vecf_0 = _mm_set1_ps(0.f);
+  __m128 vecf_0 = (__m128)__lsx_vreplgr2vr_w(0);
   __m256i vec_128_s16 =
-      _mm256_set1_epi16(static_cast<int16_t>(TRANS_INT8_UINT8_OFFT));
+      __lasx_xvreplgr2vr_h(static_cast<int16_t>(TRANS_INT8_UINT8_OFFT));
 
   for (loop_n = 0; loop_n + 31 < N; loop_n += 32) {
     for (loop_k = 0; loop_k + 15 < K; loop_k += 16) {
@@ -1085,37 +1004,33 @@ void packB_i82u8_trans(
   }
   for (; loop_n < N; loop_n++) {
     for (loop_k = 0; loop_k + 15 < K; loop_k += 16) {
-      veci_line[0] = _mm_loadu_si128(
-          reinterpret_cast<__m128i const *>(b_ptr + step * loop_n + loop_k));
+      veci_line[0] = __lsx_vld(b_ptr + step * loop_n + loop_k, 0);
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      _mm_storeu_si128(reinterpret_cast<__m128i *>(out_ptr), veci_line[0]);
+      __lsx_vst(veci_line[0], out_ptr, 0);
       out_ptr += 1 * 16;
     }
     for (; loop_k + 7 < K; loop_k += 8) {
-      veci_line[0] = _mm_set1_epi64x(
-          *(reinterpret_cast<__int64 *>(b_ptr + step * loop_n + loop_k)));
+      veci_line[0] = __lsx_vreplgr2vr_d(b_ptr + step * loop_n + loop_k);
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      _mm_storel_epi64(reinterpret_cast<__m128i *>(out_ptr), veci_line[0]);
+      __lsx_vstelem_d(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 8;
     }
     for (; loop_k + 3 < K; loop_k += 4) {
-      veci_line[0] = _mm_set1_epi32(
+      veci_line[0] = __lsx_vreplgr2vr_w(
           *(reinterpret_cast<int *>(b_ptr + step * loop_n + loop_k)));
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      _mm_store_ss(reinterpret_cast<float *>(out_ptr),
-                   _mm_castsi128_ps(veci_line[0]));
+      __lsx_vstelem_w(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 4;
     }
     remain_k = K - loop_k;
     if (remain_k > 0) {
-      veci_line[0] = _mm_set1_epi32(0);
+      veci_line[0] = __lsx_vreplgr2vr_w(0);
       int8_t *vec_tmp = reinterpret_cast<int8_t *>(&veci_line[0]);
       for (int i = 0; i < remain_k; i++) {
         vec_tmp[i] = *(b_ptr + step * loop_n + loop_k + i);
       }
       INT8_ADD_128_HALF(veci_line[0], vec_128_s16)
-      _mm_store_ss(reinterpret_cast<float *>(out_ptr),
-                   _mm_castsi128_ps(veci_line[0]));
+      __lsx_vstelem_w(veci_line[0], out_ptr, 0, 0);
       out_ptr += 1 * 4;
     }
   }
@@ -1176,8 +1091,6 @@ void gemm_s8u8s8_runpackB(
 #undef TRANSPOSE_2xX
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle
-
-#endif  // __AVX2__

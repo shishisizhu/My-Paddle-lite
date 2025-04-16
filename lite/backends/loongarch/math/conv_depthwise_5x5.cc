@@ -12,18 +12,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/conv_depthwise_5x5.h"
+#include "lite/backends/loongarch/math/conv_depthwise_5x5.h"
 #include <vector>
-#include "lite/backends/x86/math/avx/avx_mathfuns.h"
-#include "lite/backends/x86/math/avx/avx_mathfuns.h"
-#include "lite/backends/x86/math/avx/conv_utils.h"
-#include "lite/backends/x86/math/conv_depthwise_impl.h"
-#include "lite/backends/x86/math/sse/conv_utils.h"
+#include "lite/backends/loongarch/math/avx_mathfuns.h"
+#include "lite/backends/loongarch/math/conv_utils.h"
+#include "lite/backends/loongarch/math/conv_depthwise_impl.h"
 #include "lite/core/memory.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 #define Min(a, b) (a < b ? a : b)
 #define ROUNDUP(a, b) ((((a) + (b)-1) / (b)) * (b))
@@ -50,18 +48,14 @@ void conv_depthwise_5x5s1(const float* din,
 
   int channel_num = ROUNDUP(ch_in, block_channel);
   float* pack_weight = static_cast<float*>(
-      TargetMalloc(TARGET(kX86), channel_num * 5 * 5 * sizeof(float)));
+      TargetMalloc(TARGET(kLoongArch), channel_num * 5 * 5 * sizeof(float)));
   float* pack_input = static_cast<float*>(TargetMalloc(
-      TARGET(kX86),
+      TARGET(kLoongArch),
       (h_in + 2 * pad) * (w_in + 2 * pad) * block_channel * sizeof(float)));
   float* pack_out = static_cast<float*>(TargetMalloc(
-      TARGET(kX86), h_out * w_out * block_channel * sizeof(float)));
+      TARGET(kLoongArch), h_out * w_out * block_channel * sizeof(float)));
 
-#ifdef __AVX__
   packC8_common(weights, pack_weight, {0, 0, 0, 0}, 5, 5, ch_in);
-#else
-  packC4_common(weights, pack_weight, {0, 0, 0, 0}, 5, 5, ch_in);
-#endif
 
   for (int n = 0; n < num; n++) {
     const float* din_batch = din + n * ch_in * size_in_channel;
@@ -73,21 +67,12 @@ void conv_depthwise_5x5s1(const float* din,
       auto* din_ptr = din_batch + c * size_in_channel;
       auto* weights_data = pack_weight + c * 5 * 5;
 
-#ifdef __AVX__
       packC8_common(din_ptr,
                     pack_input,
                     {pad, pad, pad, pad},
                     h_in,
                     w_in,
                     real_block_channel);
-#else
-      packC4_common(din_ptr,
-                    pack_input,
-                    {pad, pad, pad, pad},
-                    h_in,
-                    w_in,
-                    real_block_channel);
-#endif
 
       float bias_ptr[block_channel] = {0.f};
       if (flag_bias) {
@@ -340,7 +325,7 @@ void conv_depthwise_5x5s1(const float* din,
               r3 = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r3, voffset))),
                           mul_ps(r3, vscale));
             } else {
-              LOG(FATAL) << " [X86] activation type "
+              LOG(FATAL) << " [LoongArch] activation type "
                          << static_cast<int>(act_type) << " not supported ";
             }
           }
@@ -386,7 +371,7 @@ void conv_depthwise_5x5s1(const float* din,
               r = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r, voffset))),
                          mul_ps(r, vscale));
             } else {
-              LOG(FATAL) << " [X86] activation type "
+              LOG(FATAL) << " [LoongArch] activation type "
                          << static_cast<int>(act_type) << " not supported ";
             }
           }
@@ -395,17 +380,13 @@ void conv_depthwise_5x5s1(const float* din,
         }
       }
 
-#ifdef __AVX__
       unpackC8_common(pack_out, dout_ptr, size_out_channel, real_block_channel);
-#else
-      unpackC4_common(pack_out, dout_ptr, size_out_channel, real_block_channel);
-#endif
     }
   }
 
-  TargetFree(TARGET(kX86), pack_weight);
-  TargetFree(TARGET(kX86), pack_input);
-  TargetFree(TARGET(kX86), pack_out);
+  TargetFree(TARGET(kLoongArch), pack_weight);
+  TargetFree(TARGET(kLoongArch), pack_input);
+  TargetFree(TARGET(kLoongArch), pack_out);
 }
 void conv_depthwise_5x5s2(const float* din,
                           float* dout,
@@ -430,18 +411,15 @@ void conv_depthwise_5x5s2(const float* din,
 
   int channel_num = ROUNDUP(ch_in, block_channel);
   float* pack_weight = static_cast<float*>(
-      TargetMalloc(TARGET(kX86), channel_num * 5 * 5 * sizeof(float)));
+      TargetMalloc(TARGET(kLoongArch), channel_num * 5 * 5 * sizeof(float)));
   float* pack_input = static_cast<float*>(TargetMalloc(
-      TARGET(kX86),
+      TARGET(kLoongArch),
       (h_in + 2 * pad) * (w_in + 2 * pad) * block_channel * sizeof(float)));
   float* pack_out = static_cast<float*>(TargetMalloc(
-      TARGET(kX86), h_out * w_out * block_channel * sizeof(float)));
+      TARGET(kLoongArch), h_out * w_out * block_channel * sizeof(float)));
 
-#ifdef __AVX__
   packC8_common(weights, pack_weight, {0, 0, 0, 0}, 5, 5, ch_in);
-#else
-  packC4_common(weights, pack_weight, {0, 0, 0, 0}, 5, 5, ch_in);
-#endif
+
 
   for (int n = 0; n < num; n++) {
     const float* din_batch = din + n * ch_in * size_in_channel;
@@ -453,21 +431,12 @@ void conv_depthwise_5x5s2(const float* din,
       auto* din_ptr = din_batch + c * size_in_channel;
       auto* weights_data = pack_weight + c * 5 * 5;
 
-#ifdef __AVX__
       packC8_common(din_ptr,
                     pack_input,
                     {pad, pad, pad, pad},
                     h_in,
                     w_in,
                     real_block_channel);
-#else
-      packC4_common(din_ptr,
-                    pack_input,
-                    {pad, pad, pad, pad},
-                    h_in,
-                    w_in,
-                    real_block_channel);
-#endif
 
       float bias_ptr[block_channel] = {0.f};
       if (flag_bias) {
@@ -735,7 +704,7 @@ void conv_depthwise_5x5s2(const float* din,
               r3 = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r3, voffset))),
                           mul_ps(r3, vscale));
             } else {
-              LOG(FATAL) << " [X86] activation type "
+              LOG(FATAL) << " [LoongArch] activation type "
                          << static_cast<int>(act_type) << " not supported ";
             }
           }
@@ -781,7 +750,7 @@ void conv_depthwise_5x5s2(const float* din,
               r = mul_ps(min_ps(vthreshold, max_ps(zero, add_ps(r, voffset))),
                          mul_ps(r, vscale));
             } else {
-              LOG(FATAL) << " [X86] activation type "
+              LOG(FATAL) << " [LoongArch] activation type "
                          << static_cast<int>(act_type) << "not supported";
             }
           }
@@ -789,21 +758,16 @@ void conv_depthwise_5x5s2(const float* din,
           dout_block += block_channel;
         }
       }
-
-#ifdef __AVX__
       unpackC8_common(pack_out, dout_ptr, size_out_channel, real_block_channel);
-#else
-      unpackC4_common(pack_out, dout_ptr, size_out_channel, real_block_channel);
-#endif
     }
   }
 
-  TargetFree(TARGET(kX86), pack_weight);
-  TargetFree(TARGET(kX86), pack_input);
-  TargetFree(TARGET(kX86), pack_out);
+  TargetFree(TARGET(kLoongArch), pack_weight);
+  TargetFree(TARGET(kLoongArch), pack_input);
+  TargetFree(TARGET(kLoongArch), pack_out);
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

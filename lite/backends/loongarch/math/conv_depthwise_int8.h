@@ -14,7 +14,7 @@
 
 #pragma once
 #include "lite/core/context.h"
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 namespace paddle {
 namespace lite {
 namespace loongarch {

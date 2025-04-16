@@ -12,13 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/avx/conv_depthwise_pack4.h"
+#include "lite/backends/loongarch/math/conv_depthwise_pack4.h"
 #include <vector>
-#include "lite/backends/x86/math/avx/conv_utils.h"
+#include "lite/backends/loongarch/math/conv_utils.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 void conv_depthwise_m128(lite::Tensor* input,
@@ -82,27 +82,27 @@ void conv_depthwise_m128(lite::Tensor* input,
       const float* filter_ptr = filter_data + ic * filter_channel_step;
       for (int i = 0; i < output_height; ++i) {
         for (int j = 0; j < output_width; ++j) {
-          __m128 _sum = _mm_set1_ps(0.f);
+          __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
           if (bias) {
-            _sum = _mm_loadu_ps((bias->data<float>()) + ic * 4);
+            _sum = (__m128)__lsx_vld((bias->data<float>()) + ic * 4, 0);
           }
 
           const float* start_ptr =
               input_ptr + i * stride_h * input_group_step + j * stride_w * 4;
 
           for (int k = 0; k < filter_kernel_size; k++) {
-            __m128 _input = _mm_loadu_ps(start_ptr + space_ofs[k] * 4);
-            __m128 _filter = _mm_loadu_ps(filter_ptr + k * 4);
-            __m128 _mul = _mm_mul_ps(_input, _filter);
-            _sum = _mm_add_ps(_mul, _sum);
+            __m128 _input = (__m128)__lsx_vld(start_ptr + space_ofs[k] * 4, 0);
+            __m128 _filter = (__m128)__lsx_vld(filter_ptr + k * 4, 0);
+            __m128 _mul = __lsx_vfmul_s(_input, _filter);
+            _sum = __lsx_vfadd_s(_mul, _sum);
           }
 
           if (has_act) {
             _sum = activation4_m128(_sum, act_type, act_param);
           }
 
-          _mm_storeu_ps(output_data, _sum);
+          __lsx_vst(_sum, output_data, 0);
           output_data += 4;
         }
       }
@@ -111,6 +111,6 @@ void conv_depthwise_m128(lite::Tensor* input,
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

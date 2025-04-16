@@ -12,46 +12,40 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/math_function.h"
-
-#ifdef PADDLE_WITH_MKLML
-#include "lite/backends/x86/mklml.h"
-#endif
-
+#include "lite/backends/loongarch/math/math_function.h"
 #ifdef PADDLE_USE_OPENBLAS
 #include <cblas.h>
 #endif
-
 #include <vector>
-#include "lite/backends/x86/fluid/data_type.h"
-#include "lite/backends/x86/fluid/float16.h"
-#include "lite/backends/x86/math/math_function_impl.h"
+#include "lite/backends/loongarch/fluid/data_type.h"
+#include "lite/backends/loongarch/fluid/float16.h"
+#include "lite/backends/loongarch/math/math_function_impl.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
-template struct SetConstant<lite::TargetType::kX86, lite::fluid::float16>;
-template struct SetConstant<lite::TargetType::kX86, float>;
-template struct SetConstant<lite::TargetType::kX86, double>;
-template struct SetConstant<lite::TargetType::kX86, int>;
-template struct SetConstant<lite::TargetType::kX86, int64_t>;
-template struct SetConstant<lite::TargetType::kX86, bool>;
-template struct SetConstant<lite::TargetType::kX86, uint8_t>;
+template struct SetConstant<lite::TargetType::kLoongArch, lite::fluid::float16>;
+template struct SetConstant<lite::TargetType::kLoongArch, float>;
+template struct SetConstant<lite::TargetType::kLoongArch, double>;
+template struct SetConstant<lite::TargetType::kLoongArch, int>;
+template struct SetConstant<lite::TargetType::kLoongArch, int64_t>;
+template struct SetConstant<lite::TargetType::kLoongArch, bool>;
+template struct SetConstant<lite::TargetType::kLoongArch, uint8_t>;
 
 #define DEFINE_CPU_TRANS(RANK)                                      \
-  template struct Transpose<lite::TargetType::kX86,                 \
+  template struct Transpose<lite::TargetType::kLoongArch,                 \
                             lite::fluid::float16,                   \
                             RANK>;                                  \
-  template struct Transpose<lite::TargetType::kX86, float, RANK>;   \
-  template struct Transpose<lite::TargetType::kX86, double, RANK>;  \
-  template struct Transpose<lite::TargetType::kX86, int, RANK>;     \
-  template struct Transpose<lite::TargetType::kX86, int64_t, RANK>; \
-  template struct Transpose<lite::TargetType::kX86, bool, RANK>;    \
-  template struct Transpose<lite::TargetType::kX86, int16_t, RANK>; \
-  template struct Transpose<lite::TargetType::kX86, uint8_t, RANK>; \
-  template struct Transpose<lite::TargetType::kX86, int8_t, RANK>;
+  template struct Transpose<lite::TargetType::kLoongArch, float, RANK>;   \
+  template struct Transpose<lite::TargetType::kLoongArch, double, RANK>;  \
+  template struct Transpose<lite::TargetType::kLoongArch, int, RANK>;     \
+  template struct Transpose<lite::TargetType::kLoongArch, int64_t, RANK>; \
+  template struct Transpose<lite::TargetType::kLoongArch, bool, RANK>;    \
+  template struct Transpose<lite::TargetType::kLoongArch, int16_t, RANK>; \
+  template struct Transpose<lite::TargetType::kLoongArch, uint8_t, RANK>; \
+  template struct Transpose<lite::TargetType::kLoongArch, int8_t, RANK>;
 
 DEFINE_CPU_TRANS(1);
 DEFINE_CPU_TRANS(2);
@@ -65,7 +59,7 @@ struct TensorSetConstantCPU {
       : tensor_(tensor), value_(value) {}
   template <typename T>
   void apply() const {
-    auto* begin = tensor_->template mutable_data<T>(lite::TargetType::kX86);
+    auto* begin = tensor_->template mutable_data<T>(lite::TargetType::kLoongArch);
     std::fill(begin, begin + tensor_->numel(), static_cast<T>(value_));
   }
   lite::Tensor* tensor_;
@@ -73,8 +67,8 @@ struct TensorSetConstantCPU {
 };
 
 template <>
-void set_constant_with_place<lite::TargetType::kX86>(
-    const lite::Context<lite::TargetType::kX86>& context,
+void set_constant_with_place<lite::TargetType::kLoongArch>(
+    const lite::Context<lite::TargetType::kLoongArch>& context,
     lite::Tensor* tensor,
     float value) {
   // lite::VisitDataType(tensor->type(), TensorSetConstantCPU(tensor, value));
@@ -106,8 +100,8 @@ void set_constant(const lite::Context<Target>& context,
 }
 
 template <typename T>
-struct RowwiseAdd<lite::TargetType::kX86, T> {
-  void operator()(const lite::Context<lite::TargetType::kX86>& context,
+struct RowwiseAdd<lite::TargetType::kLoongArch, T> {
+  void operator()(const lite::Context<lite::TargetType::kLoongArch>& context,
                   const lite::Tensor& input,
                   const lite::Tensor& vector,
                   lite::Tensor* output) {
@@ -127,21 +121,21 @@ struct RowwiseAdd<lite::TargetType::kX86, T> {
   }
 };
 
-template struct RowwiseAdd<lite::TargetType::kX86, float>;
-template struct RowwiseAdd<lite::TargetType::kX86, double>;
+template struct RowwiseAdd<lite::TargetType::kLoongArch, float>;
+template struct RowwiseAdd<lite::TargetType::kLoongArch, double>;
 
-template struct ColwiseSum<lite::TargetType::kX86, float>;
-template struct ColwiseSum<lite::TargetType::kX86, double>;
-template struct ColwiseSum<lite::TargetType::kX86, int>;
-template struct ColwiseSum<lite::TargetType::kX86, int64_t>;
+template struct ColwiseSum<lite::TargetType::kLoongArch, float>;
+template struct ColwiseSum<lite::TargetType::kLoongArch, double>;
+template struct ColwiseSum<lite::TargetType::kLoongArch, int>;
+template struct ColwiseSum<lite::TargetType::kLoongArch, int64_t>;
 
-template struct RowwiseSum<lite::TargetType::kX86, float>;
-template struct RowwiseSum<lite::TargetType::kX86, double>;
+template struct RowwiseSum<lite::TargetType::kLoongArch, float>;
+template struct RowwiseSum<lite::TargetType::kLoongArch, double>;
 
-template struct RowwiseMean<lite::TargetType::kX86, float>;
-template struct RowwiseMean<lite::TargetType::kX86, double>;
+template struct RowwiseMean<lite::TargetType::kLoongArch, float>;
+template struct RowwiseMean<lite::TargetType::kLoongArch, double>;
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

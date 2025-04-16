@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "lite/backends/x86/math/avx/instance_norm.h"
+#include "lite/backends/loongarch/math/instance_norm.h"
 #include <immintrin.h>
 #include <cmath>
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 void instance_norm(const float* in,
@@ -44,46 +44,46 @@ void instance_norm(const float* in,
     for (int h = 0; h < height; ++h) {
       int w = width;
 
-      __m128 sum0 = _mm_set1_ps(0.f);
-      __m128 sum1 = _mm_set1_ps(0.f);
-      __m128 sum2 = _mm_set1_ps(0.f);
-      __m128 sum3 = _mm_set1_ps(0.f);
-      __m128 square_sum0 = _mm_set1_ps(0.f);
-      __m128 square_sum1 = _mm_set1_ps(0.f);
-      __m128 square_sum2 = _mm_set1_ps(0.f);
-      __m128 square_sum3 = _mm_set1_ps(0.f);
+      __m128 sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 square_sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 square_sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 square_sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+      __m128 square_sum3 = (__m128)__lsx_vreplgr2vr_w(0);
       __m128 in0, in1, in2, in3;
       for (; w > 15; w -= 16) {
-        in0 = _mm_loadu_ps(in_p);
-        in1 = _mm_loadu_ps(in_p + 4);
-        in2 = _mm_loadu_ps(in_p + 8);
-        in3 = _mm_loadu_ps(in_p + 12);
+        in0 = (__m128)__lsx_vld(in_p, 0);
+        in1 = (__m128)__lsx_vld(in_p + 4, 0);
+        in2 = (__m128)__lsx_vld(in_p + 8, 0);
+        in3 = (__m128)__lsx_vld(in_p + 12, 0);
         // add x
-        sum0 = _mm_add_ps(sum0, in0);
-        sum1 = _mm_add_ps(sum1, in1);
-        sum2 = _mm_add_ps(sum2, in2);
-        sum3 = _mm_add_ps(sum3, in3);
+        sum0 = __lsx_vfadd_s(sum0, in0);
+        sum1 = __lsx_vfadd_s(sum1, in1);
+        sum2 = __lsx_vfadd_s(sum2, in2);
+        sum3 = __lsx_vfadd_s(sum3, in3);
         // add x * x
-        square_sum0 = _mm_fmadd_ps(in0, in0, square_sum0);
-        square_sum1 = _mm_fmadd_ps(in1, in1, square_sum1);
-        square_sum2 = _mm_fmadd_ps(in2, in2, square_sum2);
-        square_sum3 = _mm_fmadd_ps(in3, in3, square_sum3);
+        square_sum0 = __lsx_vfmadd_s(in0, in0, square_sum0);
+        square_sum1 = __lsx_vfmadd_s(in1, in1, square_sum1);
+        square_sum2 = __lsx_vfmadd_s(in2, in2, square_sum2);
+        square_sum3 = __lsx_vfmadd_s(in3, in3, square_sum3);
 
         in_p += 16;
       }
       for (; w > 7; w -= 8) {
-        in0 = _mm_loadu_ps(in_p);
-        in1 = _mm_loadu_ps(in_p + 4);
-        sum0 = _mm_add_ps(sum0, in0);
-        sum1 = _mm_add_ps(sum1, in1);
-        square_sum0 = _mm_fmadd_ps(in0, in0, square_sum0);
-        square_sum1 = _mm_fmadd_ps(in1, in1, square_sum1);
+        in0 = (__m128)__lsx_vld(in_p, 0);
+        in1 = (__m128)__lsx_vld(in_p + 4, 0);
+        sum0 = __lsx_vfadd_s(sum0, in0);
+        sum1 = __lsx_vfadd_s(sum1, in1);
+        square_sum0 = __lsx_vfmadd_s(in0, in0, square_sum0);
+        square_sum1 = __lsx_vfmadd_s(in1, in1, square_sum1);
         in_p += 8;
       }
       for (; w > 3; w -= 4) {
-        in0 = _mm_loadu_ps(in_p);
-        sum0 = _mm_add_ps(sum0, in0);
-        square_sum0 = _mm_fmadd_ps(in0, in0, square_sum0);
+        in0 = (__m128)__lsx_vld(in_p, 0);
+        sum0 = __lsx_vfadd_s(sum0, in0);
+        square_sum0 = __lsx_vfmadd_s(in0, in0, square_sum0);
         in_p += 4;
       }
       float sum = 0.f;
@@ -94,18 +94,18 @@ void instance_norm(const float* in,
         in_p++;
       }
 
-      sum0 = _mm_add_ps(sum0, sum1);
-      sum2 = _mm_add_ps(sum2, sum3);
-      square_sum0 = _mm_add_ps(square_sum0, square_sum1);
-      square_sum2 = _mm_add_ps(square_sum2, square_sum3);
+      sum0 = __lsx_vfadd_s(sum0, sum1);
+      sum2 = __lsx_vfadd_s(sum2, sum3);
+      square_sum0 = __lsx_vfadd_s(square_sum0, square_sum1);
+      square_sum2 = __lsx_vfadd_s(square_sum2, square_sum3);
 
-      sum0 = _mm_add_ps(sum0, sum2);
-      square_sum0 = _mm_add_ps(square_sum0, square_sum2);
+      sum0 = __lsx_vfadd_s(sum0, sum2);
+      square_sum0 = __lsx_vfadd_s(square_sum0, square_sum2);
 
-      __m128 r = _mm_hadd_ps(sum0, square_sum0);
-      r = _mm_hadd_ps(r, r);
+      __m128 r = lsx_hadd_s(sum0, square_sum0);
+      r = lsx_hadd_s(r, r);
       float buf[4];
-      _mm_storeu_ps(buf, r);
+      __lsx_vst(r, buf, 0);
       sum += buf[0];
       summ += buf[1];
       sum_spatial += sum;
@@ -130,31 +130,31 @@ void instance_norm(const float* in,
         scale == nullptr ? saved_variance[i] : scale[i % c] * saved_variance[i];
     const float bias_val = bias == nullptr ? 0. : bias[i % c];
     const float mean_val = saved_mean[i];
-    const __m128 vsstd = _mm_set1_ps(sstd_val);
-    const __m128 vbias = _mm_set1_ps(bias_val);
-    const __m128 vmean = _mm_set1_ps(mean_val);
+    const __m128 vsstd = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&sstd_val));
+    const __m128 vbias = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&bias_val));
+    const __m128 vmean = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&mean_val));
     __m128 in0, in1, submean0, submean1, out0, out1;
 
     for (; j > 7; j -= 8) {
-      in0 = _mm_loadu_ps(in_p);
-      in1 = _mm_loadu_ps(in_p + 4);
-      submean0 = _mm_sub_ps(in0, vmean);
-      submean1 = _mm_sub_ps(in1, vmean);
-      out0 = _mm_fmadd_ps(submean0, vsstd, vbias);
-      out1 = _mm_fmadd_ps(submean1, vsstd, vbias);
+      in0 = (__m128)__lsx_vld(in_p, 0);
+      in1 = (__m128)__lsx_vld(in_p + 4, 0);
+      submean0 = __lsx_vfsub_s(in0, vmean);
+      submean1 = __lsx_vfsub_s(in1, vmean);
+      out0 = __lsx_vfmadd_s(submean0, vsstd, vbias);
+      out1 = __lsx_vfmadd_s(submean1, vsstd, vbias);
 
-      _mm_storeu_ps(out_p, out0);
-      _mm_storeu_ps(out_p + 4, out1);
+      __lsx_vst(out0, out_p, 0);
+      __lsx_vst(out1, out_p + 4, 0);
 
       in_p += 8;
       out_p += 8;
     }
     for (; j > 3; j -= 4) {
-      in0 = _mm_loadu_ps(in_p);
-      submean0 = _mm_sub_ps(in0, vmean);
-      out0 = _mm_fmadd_ps(submean0, vsstd, vbias);
+      in0 = (__m128)__lsx_vld(in_p, 0);
+      submean0 = __lsx_vfsub_s(in0, vmean);
+      out0 = __lsx_vfmadd_s(submean0, vsstd, vbias);
 
-      _mm_storeu_ps(out_p, out0);
+      __lsx_vst(out0, out_p, 0);
 
       in_p += 4;
       out_p += 4;
@@ -168,6 +168,6 @@ void instance_norm(const float* in,
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

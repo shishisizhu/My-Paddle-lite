@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #pragma once
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 #include "lite/core/tensor.h"
 #include "lite/operators/op_params.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 void conv_depthwise_3x3s1_m256(lite::Tensor* input,
@@ -51,6 +51,6 @@ void conv_depthwise_m256(lite::Tensor* input,
                          const operators::ActivationParam act_param);
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cstring>
 
-//_mm256_set_epi32 
+//lasx_m256i_set_epi32
 
 #define CONVERT_IMM8(x) ((x) ^ (2U | (2U << 4)))
 
@@ -310,6 +310,13 @@ inline void lasx_void_maskstore_ps(void* ptr, __m256i mask, __m256 data) {
     __lasx_xvst(blended, ptr, 0);
 }
 
+inline void lasx_maskstore_epi32(void * ptr, __m256i mask, __m256i mask_bits) {
+     __m256i full_mask = __lasx_xvsrai_w(mask, 31);
+     __m256i old_data = __lasx_xvld(ptr, 0);
+     __m256i blended = __lasx_xvbitsel_v(old_data, data, full_mask);
+    __lasx_xvst(blended, ptr, 0);
+}
+
 inline void lsx_void_maskstore_ps(void* ptr, __m128i mask, __m128 data) {
     __m128i full_mask = __lsx_vsrai_w(mask, 31);
     __m128i old_data = __lsx_vld(ptr, 0);
@@ -421,6 +428,12 @@ inline __m128i lsx_packs_epi32(__m128i a, __m128i b) {
     __m128i res = __lsx_vpickev_h(b_sat, a_sat);
     return res;
 }
+inline __m256i lasx_m256i_packs_epi32(__m256i a, __m256i b) {
+   __m256i a_sat = __lasx_xvsat_w(a, 15);
+   __m256i b_sat = __lasx_xvsat_w(b, 15);
+   __m256i res = __lasx_xvpickev_h(b_sat, a_sat);
+   return res;
+}
 
 inline __m128i lsx_packs_epi16(__m128i a, __m128i b) {
     // 1. 对每个元素进行饱和操作，限制为 int16 范围
@@ -432,6 +445,12 @@ inline __m128i lsx_packs_epi16(__m128i a, __m128i b) {
     return res;
 }
 
+inline __m256i lasx_packs_epi16(__m256i a, __m256i b) {
+    __m256i a_sat = __lasx_xvsat_h(a, 7);
+    __m256i b_sat = __lasx_xvsat_h(b, 7);
+    __m256i res = __lasx_xvpickev_b(b_sat, a_sat);
+    return res;
+}
 inline __m256i lasx_maddubs_epi16(__m256i a, __m256i b) {
     return __lasx_xvsat_h(__lasx_xvmaddwev_h_bu_b(__lasx_xvmulwod_h_bu_b(a, b), a, b), 15);
 }
@@ -523,6 +542,10 @@ inline __m256i lasx_maskload_epi64(void * mem_addr, __m256i mask) {
     // 应用掩码，保留需要的数据，其余置0
     __m256i result = __lasx_xvand_v(data, load_mask);
     return result;
+}
+
+__m256i lasx_inserti128_si256(__m256i a, __m128i b, const int imm8) {
+   return imm8==0 ? lasx_set_q(lasx_extracti128_hi(a), b) : lasx_set_q(b, lasx_extracti128_lo(a));
 }
 
 

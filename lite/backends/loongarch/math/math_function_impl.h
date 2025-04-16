@@ -14,13 +14,13 @@ limitations under the License. */
 
 #pragma once
 #include <vector>
-#include "lite/backends/x86/fluid/data_type.h"
-#include "lite/backends/x86/fluid/eigen.h"
-#include "lite/backends/x86/math/math_function.h"
+#include "lite/backends/loongarch/fluid/data_type.h"
+#include "lite/backends/loongarch/fluid/eigen.h"
+#include "lite/backends/loongarch/math/math_function.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 template <lite::TargetType Target, typename T>
@@ -73,9 +73,9 @@ void ColwiseSum<Target, T>::operator()(const lite::Context<Target>& context,
 // colwise-sum can be easily implemented. General reduce has a huge overhead in
 // CPU
 template <typename T>
-class ColwiseSum<lite::TargetType::kX86, T> {
+class ColwiseSum<lite::TargetType::kLoongArch, T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::TensorLite& input,
                   lite::TensorLite* out) {
     auto& in_dims = input.dims();
@@ -118,9 +118,9 @@ void RowwiseMean<Target, T>::operator()(const lite::Context<Target>& context,
 // rowwise-sum can be easily implemented. General reduce has a huge overhead in
 // CPU
 template <typename T>
-class RowwiseMean<lite::TargetType::kX86, T> {
+class RowwiseMean<lite::TargetType::kLoongArch, T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::TensorLite& input,
                   lite::TensorLite* out) {
     auto& in_dims = input.dims();
@@ -162,9 +162,9 @@ void RowwiseSum<Target, T>::operator()(const lite::Context<Target>& context,
 // rowwise-sum can be easily implemented. General reduce has a huge overhead in
 // CPU
 template <typename T>
-class RowwiseSum<lite::TargetType::kX86, T> {
+class RowwiseSum<lite::TargetType::kLoongArch, T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::TensorLite& input,
                   lite::TensorLite* out) {
     auto& in_dims = input.dims();
@@ -187,6 +187,6 @@ class RowwiseSum<lite::TargetType::kX86, T> {
 };
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

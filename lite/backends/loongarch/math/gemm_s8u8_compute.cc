@@ -12,18 +12,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#ifdef __AVX2__
 
-#include "lite/backends/x86/math/gemm_s8u8_compute.h"
+#include "lite/backends/loongarch/math/gemm_s8u8_compute.h"
 #include <cmath>
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 template <>
-void generate_gemm_s8u8_x86_kern<int8_t>::repack_bias(bool is_trans,
+void generate_gemm_s8u8_loongarch_kern<int8_t>::repack_bias(bool is_trans,
                                                       int M,
                                                       int K,
                                                       const float *bias,
@@ -53,7 +52,7 @@ void generate_gemm_s8u8_x86_kern<int8_t>::repack_bias(bool is_trans,
 }
 
 template <>
-void generate_gemm_s8u8_x86_kern<float>::repack_bias(bool is_trans,
+void generate_gemm_s8u8_loongarch_kern<float>::repack_bias(bool is_trans,
                                                      int M,
                                                      int K,
                                                      const float *bias,
@@ -82,7 +81,7 @@ void generate_gemm_s8u8_x86_kern<float>::repack_bias(bool is_trans,
 }
 
 template <>
-void generate_gemm_s8u8_x86_kern<int8_t>::calc_scale(
+void generate_gemm_s8u8_loongarch_kern<int8_t>::calc_scale(
     int M, float *Sa, float Sb, float Sc, float *out) {
   for (int i = 0; i < M; i++) {
     out[i] = (Sa[i] * Sb) / Sc;
@@ -90,7 +89,7 @@ void generate_gemm_s8u8_x86_kern<int8_t>::calc_scale(
 }
 
 template <>
-void generate_gemm_s8u8_x86_kern<float>::calc_scale(
+void generate_gemm_s8u8_loongarch_kern<float>::calc_scale(
     int M, float *Sa, float Sb, float Sc, float *out) {
   for (int i = 0; i < M; i++) {
     out[i] = (Sa[i] * Sb);
@@ -98,7 +97,7 @@ void generate_gemm_s8u8_x86_kern<float>::calc_scale(
 }
 
 template <>
-void generate_gemm_s8u8_x86_kern<int8_t>::calc_block(
+void generate_gemm_s8u8_loongarch_kern<int8_t>::calc_block(
     int M, int N, int K, int *blk_m, int *blk_n) {
   int block_size, scale_tmp;
   int block_m, block_n;
@@ -120,7 +119,7 @@ void generate_gemm_s8u8_x86_kern<int8_t>::calc_block(
 }
 
 template <>
-void generate_gemm_s8u8_x86_kern<float>::calc_block(
+void generate_gemm_s8u8_loongarch_kern<float>::calc_block(
     int M, int N, int K, int *blk_m, int *blk_n) {
   int block_size, scale_tmp;
   int block_m, block_n;
@@ -143,8 +142,6 @@ void generate_gemm_s8u8_x86_kern<float>::calc_block(
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle
-
-#endif  // __AVX2__

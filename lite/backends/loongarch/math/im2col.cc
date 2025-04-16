@@ -12,14 +12,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/im2col.h"
+#include "lite/backends/loongarch/math/im2col.h"
 #include <vector>
-#include "lite/backends/x86/math/im2col_cfo_cpu.h"
+#include "lite/backends/loongarch/math/im2col_cfo_cpu.h"
 #include "lite/utils/log/cp_logging.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 /*
@@ -28,11 +28,11 @@ namespace math {
  *   [input_channels, filter_height, filter_width, output_height, output_width]
  */
 template <class T>
-class Im2ColFunctor<lite::x86::math::ColFormat::kCFO,
-                    lite::TargetType::kX86,
+class Im2ColFunctor<lite::loongarch::math::ColFormat::kCFO,
+                    lite::TargetType::kLoongArch,
                     T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::Tensor& im,
                   const std::vector<int>& dilation,
                   const std::vector<int>& stride,
@@ -62,11 +62,11 @@ class Im2ColFunctor<lite::x86::math::ColFormat::kCFO,
  *   [input_channels, filter_height, filter_width, output_height, output_width]
  */
 template <class T>
-class Col2ImFunctor<lite::x86::math::ColFormat::kCFO,
-                    lite::TargetType::kX86,
+class Col2ImFunctor<lite::loongarch::math::ColFormat::kCFO,
+                    lite::TargetType::kLoongArch,
                     T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::Tensor& col,
                   const std::vector<int>& dilation,
                   const std::vector<int>& stride,
@@ -121,17 +121,17 @@ class Col2ImFunctor<lite::x86::math::ColFormat::kCFO,
   }
 };
 
-template class Im2ColFunctor<lite::x86::math::ColFormat::kCFO,
-                             lite::TargetType::kX86,
+template class Im2ColFunctor<lite::loongarch::math::ColFormat::kCFO,
+                             lite::TargetType::kLoongArch,
                              float>;
-template class Im2ColFunctor<lite::x86::math::ColFormat::kCFO,
-                             lite::TargetType::kX86,
+template class Im2ColFunctor<lite::loongarch::math::ColFormat::kCFO,
+                             lite::TargetType::kLoongArch,
                              double>;
-template class Col2ImFunctor<lite::x86::math::ColFormat::kCFO,
-                             lite::TargetType::kX86,
+template class Col2ImFunctor<lite::loongarch::math::ColFormat::kCFO,
+                             lite::TargetType::kLoongArch,
                              float>;
-template class Col2ImFunctor<lite::x86::math::ColFormat::kCFO,
-                             lite::TargetType::kX86,
+template class Col2ImFunctor<lite::loongarch::math::ColFormat::kCFO,
+                             lite::TargetType::kLoongArch,
                              double>;
 
 /*
@@ -140,11 +140,11 @@ template class Col2ImFunctor<lite::x86::math::ColFormat::kCFO,
  *   [output_height, output_width, input_channels, filter_height, filter_width]
  */
 template <class T>
-class Im2ColFunctor<lite::x86::math::ColFormat::kOCF,
-                    lite::TargetType::kX86,
+class Im2ColFunctor<lite::loongarch::math::ColFormat::kOCF,
+                    lite::TargetType::kLoongArch,
                     T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::Tensor& im,
                   const std::vector<int>& dilation,
                   const std::vector<int>& stride,
@@ -204,11 +204,11 @@ class Im2ColFunctor<lite::x86::math::ColFormat::kOCF,
  *   [output_height, output_width, input_channels, filter_height, filter_width]
  */
 template <class T>
-class Col2ImFunctor<lite::x86::math::ColFormat::kOCF,
-                    lite::TargetType::kX86,
+class Col2ImFunctor<lite::loongarch::math::ColFormat::kOCF,
+                    lite::TargetType::kLoongArch,
                     T> {
  public:
-  void operator()(const lite::X86Context& context,
+  void operator()(const lite::LoongArchContext& context,
                   const lite::Tensor& col,
                   const std::vector<int>& dilation,
                   const std::vector<int>& stride,
@@ -273,20 +273,20 @@ class Col2ImFunctor<lite::x86::math::ColFormat::kOCF,
   }
 };
 
-template class Im2ColFunctor<lite::x86::math::ColFormat::kOCF,
-                             lite::TargetType::kX86,
+template class Im2ColFunctor<lite::loongarch::math::ColFormat::kOCF,
+                             lite::TargetType::kLoongArch,
                              float>;
-template class Im2ColFunctor<lite::x86::math::ColFormat::kOCF,
-                             lite::TargetType::kX86,
+template class Im2ColFunctor<lite::loongarch::math::ColFormat::kOCF,
+                             lite::TargetType::kLoongArch,
                              double>;
-template class Col2ImFunctor<lite::x86::math::ColFormat::kOCF,
-                             lite::TargetType::kX86,
+template class Col2ImFunctor<lite::loongarch::math::ColFormat::kOCF,
+                             lite::TargetType::kLoongArch,
                              float>;
-template class Col2ImFunctor<lite::x86::math::ColFormat::kOCF,
-                             lite::TargetType::kX86,
+template class Col2ImFunctor<lite::loongarch::math::ColFormat::kOCF,
+                             lite::TargetType::kLoongArch,
                              double>;
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

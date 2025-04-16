@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #pragma once
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 void instance_norm(const float* in,
@@ -32,6 +32,6 @@ void instance_norm(const float* in,
                    float* saved_variance);
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

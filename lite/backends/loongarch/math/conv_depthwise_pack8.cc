@@ -12,13 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/avx/conv_depthwise_pack8.h"
+#include "lite/backends/loongarch/math/conv_depthwise_pack8.h"
 #include <vector>
-#include "lite/backends/x86/math/avx/conv_utils.h"
+#include "lite/backends/loongarch/math/conv_utils.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 // input  [bs, ic/8, ih, iw, 8]
@@ -62,8 +62,8 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
 
   for (int idx = 0; idx < total_count; ++idx) {
     __m256 _bias0 =
-        bias ? _mm256_loadu_ps(bias->data<float>() + (idx % channel_num) * 8)
-             : _mm256_set1_ps(0.f);
+        bias ? (__m256)__lasx_xvld(bias->data<float>() + (idx % channel_num) * 8, 0)
+             : __lasx_xvreplgr2vr_w(0);
 
     const float* k0 = filter_data + (idx % channel_num) * filter_channel_step;
 
@@ -72,186 +72,186 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
     const float* r1 = r0 + input_group_step;
     const float* r2 = r1 + input_group_step;
 
-    __m256 _k00 = _mm256_loadu_ps(k0);
-    __m256 _k01 = _mm256_loadu_ps(k0 + 8);
-    __m256 _k02 = _mm256_loadu_ps(k0 + 16);
-    __m256 _k10 = _mm256_loadu_ps(k0 + 24);
-    __m256 _k11 = _mm256_loadu_ps(k0 + 32);
-    __m256 _k12 = _mm256_loadu_ps(k0 + 40);
-    __m256 _k20 = _mm256_loadu_ps(k0 + 48);
-    __m256 _k21 = _mm256_loadu_ps(k0 + 56);
-    __m256 _k22 = _mm256_loadu_ps(k0 + 64);
+    __m256 _k00 = (__m256)__lasx_xvld(k0, 0);
+    __m256 _k01 = (__m256)__lasx_xvld(k0 + 8, 0);
+    __m256 _k02 = (__m256)__lasx_xvld(k0 + 16, 0);
+    __m256 _k10 = (__m256)__lasx_xvld(k0 + 24, 0);
+    __m256 _k11 = (__m256)__lasx_xvld(k0 + 32, 0);
+    __m256 _k12 = (__m256)__lasx_xvld(k0 + 40, 0);
+    __m256 _k20 = (__m256)__lasx_xvld(k0 + 48, 0);
+    __m256 _k21 = (__m256)__lasx_xvld(k0 + 56, 0);
+    __m256 _k22 = (__m256)__lasx_xvld(k0 + 64, 0);
 
     for (int i = 0; i < output_height; ++i) {
       int j = 0;
       for (; j + 7 < output_width; j += 8) {
         __m256 _sum0 = _bias0;
 
-        __m256 _r00 = _mm256_loadu_ps(r0);
-        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-        __m256 _r10 = _mm256_loadu_ps(r1);
-        __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-        __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-        __m256 _r20 = _mm256_loadu_ps(r2);
-        __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-        __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+        __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+        __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+        __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+        __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+        __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+        __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+        __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+        __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-        _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
         if (has_act) {
           _sum0 = activation8_m256(_sum0, act_type, act_param);
         }
 
-        _mm256_storeu_ps(output_data, _sum0);
+        __lasx_xvst(_sum0, output_data, 0);
 
         __m256 _sum1 = _bias0;
-        __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-        __m256 _r13 = _mm256_loadu_ps(r1 + 24);
-        __m256 _r23 = _mm256_loadu_ps(r2 + 24);
+        __m256 _r03 = (__m256)__lasx_xvld(r0 + 24, 0);
+        __m256 _r13 = (__m256)__lasx_xvld(r1 + 24, 0);
+        __m256 _r23 = (__m256)__lasx_xvld(r2 + 24, 0);
 
-        _sum1 = _mm256_fmadd_ps(_k00, _r01, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k01, _r02, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k02, _r03, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k10, _r11, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k11, _r12, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k12, _r13, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k20, _r21, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k21, _r22, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k22, _r23, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k00, _r01, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k01, _r02, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k02, _r03, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k10, _r11, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k11, _r12, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k12, _r13, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k20, _r21, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k21, _r22, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k22, _r23, _sum1);
 
         if (has_act) {
           _sum1 = activation8_m256(_sum1, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 8, _sum1);
+        __lasx_xvst(_sum1, output_data + 8, 0);
 
         __m256 _sum2 = _bias0;
-        __m256 _r04 = _mm256_loadu_ps(r0 + 32);
-        __m256 _r14 = _mm256_loadu_ps(r1 + 32);
-        __m256 _r24 = _mm256_loadu_ps(r2 + 32);
+        __m256 _r04 = (__m256)__lasx_xvld(r0 + 32, 0);
+        __m256 _r14 = (__m256)__lasx_xvld(r1 + 32, 0);
+        __m256 _r24 = (__m256)__lasx_xvld(r2 + 32, 0);
 
-        _sum2 = _mm256_fmadd_ps(_k00, _r02, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k01, _r03, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k02, _r04, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k10, _r12, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k11, _r13, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k12, _r14, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k20, _r22, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k21, _r23, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k22, _r24, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k00, _r02, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k01, _r03, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k02, _r04, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k10, _r12, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k11, _r13, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k12, _r14, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k20, _r22, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k21, _r23, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k22, _r24, _sum2);
 
         if (has_act) {
           _sum2 = activation8_m256(_sum2, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 16, _sum2);
+        __lasx_xvst(_sum2, output_data + 16, 0);
 
         __m256 _sum3 = _bias0;
-        __m256 _r05 = _mm256_loadu_ps(r0 + 40);
-        __m256 _r15 = _mm256_loadu_ps(r1 + 40);
-        __m256 _r25 = _mm256_loadu_ps(r2 + 40);
+        __m256 _r05 = (__m256)__lasx_xvld(r0 + 40, 0);
+        __m256 _r15 = (__m256)__lasx_xvld(r1 + 40, 0);
+        __m256 _r25 = (__m256)__lasx_xvld(r2 + 40, 0);
 
-        _sum3 = _mm256_fmadd_ps(_k00, _r03, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k01, _r04, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k02, _r05, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k10, _r13, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k11, _r14, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k12, _r15, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k20, _r23, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k21, _r24, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k22, _r25, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k00, _r03, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k01, _r04, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k02, _r05, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k10, _r13, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k11, _r14, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k12, _r15, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k20, _r23, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k21, _r24, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k22, _r25, _sum3);
 
         if (has_act) {
           _sum3 = activation8_m256(_sum3, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 24, _sum3);
+        __lasx_xvst(_sum3, output_data + 24, 0);
 
         __m256 _sum4 = _bias0;
-        __m256 _r06 = _mm256_loadu_ps(r0 + 48);
-        __m256 _r16 = _mm256_loadu_ps(r1 + 48);
-        __m256 _r26 = _mm256_loadu_ps(r2 + 48);
+        __m256 _r06 = (__m256)__lasx_xvld(r0 + 48, 0);
+        __m256 _r16 = (__m256)__lasx_xvld(r1 + 48, 0);
+        __m256 _r26 = (__m256)__lasx_xvld(r2 + 48, 0);
 
-        _sum4 = _mm256_fmadd_ps(_k00, _r04, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k01, _r05, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k02, _r06, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k10, _r14, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k11, _r15, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k12, _r16, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k20, _r24, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k21, _r25, _sum4);
-        _sum4 = _mm256_fmadd_ps(_k22, _r26, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k00, _r04, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k01, _r05, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k02, _r06, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k10, _r14, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k11, _r15, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k12, _r16, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k20, _r24, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k21, _r25, _sum4);
+        _sum4 = __lasx_xvfmadd_s(_k22, _r26, _sum4);
 
         if (has_act) {
           _sum4 = activation8_m256(_sum4, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 32, _sum4);
+        __lasx_xvst(_sum4, output_data + 32, 0);
 
         __m256 _sum5 = _bias0;
-        __m256 _r07 = _mm256_loadu_ps(r0 + 56);
-        __m256 _r17 = _mm256_loadu_ps(r1 + 56);
-        __m256 _r27 = _mm256_loadu_ps(r2 + 56);
+        __m256 _r07 = (__m256)__lasx_xvld(r0 + 56, 0);
+        __m256 _r17 = (__m256)__lasx_xvld(r1 + 56, 0);
+        __m256 _r27 = (__m256)__lasx_xvld(r2 + 56, 0);
 
-        _sum5 = _mm256_fmadd_ps(_k00, _r05, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k01, _r06, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k02, _r07, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k10, _r15, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k11, _r16, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k12, _r17, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k20, _r25, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k21, _r26, _sum5);
-        _sum5 = _mm256_fmadd_ps(_k22, _r27, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k00, _r05, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k01, _r06, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k02, _r07, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k10, _r15, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k11, _r16, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k12, _r17, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k20, _r25, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k21, _r26, _sum5);
+        _sum5 = __lasx_xvfmadd_s(_k22, _r27, _sum5);
 
         if (has_act) {
           _sum5 = activation8_m256(_sum5, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 40, _sum5);
+        __lasx_xvst(_sum5, output_data + 40, 0);
 
         __m256 _sum6 = _bias0;
-        __m256 _r08 = _mm256_loadu_ps(r0 + 64);
-        __m256 _r18 = _mm256_loadu_ps(r1 + 64);
-        __m256 _r28 = _mm256_loadu_ps(r2 + 64);
+        __m256 _r08 = (__m256)__lasx_xvld(r0 + 64, 0);
+        __m256 _r18 = (__m256)__lasx_xvld(r1 + 64, 0);
+        __m256 _r28 = (__m256)__lasx_xvld(r2 + 64, 0);
 
-        _sum6 = _mm256_fmadd_ps(_k00, _r06, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k01, _r07, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k02, _r08, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k10, _r16, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k11, _r17, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k12, _r18, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k20, _r26, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k21, _r27, _sum6);
-        _sum6 = _mm256_fmadd_ps(_k22, _r28, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k00, _r06, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k01, _r07, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k02, _r08, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k10, _r16, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k11, _r17, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k12, _r18, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k20, _r26, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k21, _r27, _sum6);
+        _sum6 = __lasx_xvfmadd_s(_k22, _r28, _sum6);
 
         if (has_act) {
           _sum6 = activation8_m256(_sum6, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 48, _sum6);
+        __lasx_xvst(_sum6, output_data + 48, 0);
 
         __m256 _sum7 = _bias0;
-        __m256 _r09 = _mm256_loadu_ps(r0 + 72);
-        __m256 _r19 = _mm256_loadu_ps(r1 + 72);
-        __m256 _r29 = _mm256_loadu_ps(r2 + 72);
+        __m256 _r09 = (__m256)__lasx_xvld(r0 + 72, 0);
+        __m256 _r19 = (__m256)__lasx_xvld(r1 + 72, 0);
+        __m256 _r29 = (__m256)__lasx_xvld(r2 + 72, 0);
 
-        _sum7 = _mm256_fmadd_ps(_k00, _r07, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k01, _r08, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k02, _r09, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k10, _r17, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k11, _r18, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k12, _r19, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k20, _r27, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k21, _r28, _sum7);
-        _sum7 = _mm256_fmadd_ps(_k22, _r29, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k00, _r07, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k01, _r08, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k02, _r09, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k10, _r17, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k11, _r18, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k12, _r19, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k20, _r27, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k21, _r28, _sum7);
+        _sum7 = __lasx_xvfmadd_s(_k22, _r29, _sum7);
 
         if (has_act) {
           _sum7 = activation8_m256(_sum7, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 56, _sum7);
+        __lasx_xvst(_sum7, output_data + 56, 0);
 
         r0 += 64;
         r1 += 64;
@@ -261,90 +261,90 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
       for (; j + 3 < output_width; j += 4) {
         __m256 _sum0 = _bias0;
 
-        __m256 _r00 = _mm256_loadu_ps(r0);
-        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-        __m256 _r10 = _mm256_loadu_ps(r1);
-        __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-        __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-        __m256 _r20 = _mm256_loadu_ps(r2);
-        __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-        __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+        __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+        __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+        __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+        __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+        __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+        __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+        __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+        __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-        _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
         if (has_act) {
           _sum0 = activation8_m256(_sum0, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data, _sum0);
+        __lasx_xvst(_sum0, output_data, 0);
 
         __m256 _sum1 = _bias0;
-        __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-        __m256 _r13 = _mm256_loadu_ps(r1 + 24);
-        __m256 _r23 = _mm256_loadu_ps(r2 + 24);
+        __m256 _r03 = (__m256)__lasx_xvld(r0 + 24, 0);
+        __m256 _r13 = (__m256)__lasx_xvld(r1 + 24, 0);
+        __m256 _r23 = (__m256)__lasx_xvld(r2 + 24, 0);
 
-        _sum1 = _mm256_fmadd_ps(_k00, _r01, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k01, _r02, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k02, _r03, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k10, _r11, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k11, _r12, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k12, _r13, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k20, _r21, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k21, _r22, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k22, _r23, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k00, _r01, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k01, _r02, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k02, _r03, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k10, _r11, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k11, _r12, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k12, _r13, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k20, _r21, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k21, _r22, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k22, _r23, _sum1);
 
         if (has_act) {
           _sum1 = activation8_m256(_sum1, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 8, _sum1);
+        __lasx_xvst(_sum1, output_data + 8, 0);
 
         __m256 _sum2 = _bias0;
-        __m256 _r04 = _mm256_loadu_ps(r0 + 32);
-        __m256 _r14 = _mm256_loadu_ps(r1 + 32);
-        __m256 _r24 = _mm256_loadu_ps(r2 + 32);
+        __m256 _r04 = (__m256)__lasx_xvld(r0 + 32, 0);
+        __m256 _r14 = (__m256)__lasx_xvld(r1 + 32, 0);
+        __m256 _r24 = (__m256)__lasx_xvld(r2 + 32, 0);
 
-        _sum2 = _mm256_fmadd_ps(_k00, _r02, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k01, _r03, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k02, _r04, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k10, _r12, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k11, _r13, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k12, _r14, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k20, _r22, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k21, _r23, _sum2);
-        _sum2 = _mm256_fmadd_ps(_k22, _r24, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k00, _r02, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k01, _r03, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k02, _r04, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k10, _r12, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k11, _r13, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k12, _r14, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k20, _r22, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k21, _r23, _sum2);
+        _sum2 = __lasx_xvfmadd_s(_k22, _r24, _sum2);
 
         if (has_act) {
           _sum2 = activation8_m256(_sum2, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 16, _sum2);
+        __lasx_xvst(_sum2, output_data + 16, 0);
 
         __m256 _sum3 = _bias0;
-        __m256 _r05 = _mm256_loadu_ps(r0 + 40);
-        __m256 _r15 = _mm256_loadu_ps(r1 + 40);
-        __m256 _r25 = _mm256_loadu_ps(r2 + 40);
+        __m256 _r05 = (__m256)__lasx_xvld(r0 + 40, 0);
+        __m256 _r15 = (__m256)__lasx_xvld(r1 + 40, 0);
+        __m256 _r25 = (__m256)__lasx_xvld(r2 + 40, 0);
 
-        _sum3 = _mm256_fmadd_ps(_k00, _r03, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k01, _r04, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k02, _r05, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k10, _r13, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k11, _r14, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k12, _r15, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k20, _r23, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k21, _r24, _sum3);
-        _sum3 = _mm256_fmadd_ps(_k22, _r25, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k00, _r03, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k01, _r04, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k02, _r05, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k10, _r13, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k11, _r14, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k12, _r15, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k20, _r23, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k21, _r24, _sum3);
+        _sum3 = __lasx_xvfmadd_s(_k22, _r25, _sum3);
 
         if (has_act) {
           _sum3 = activation8_m256(_sum3, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 24, _sum3);
+        __lasx_xvst(_sum3, output_data + 24, 0);
 
         r0 += 32;
         r1 += 32;
@@ -354,50 +354,50 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
       for (; j + 1 < output_width; j += 2) {
         __m256 _sum0 = _bias0;
 
-        __m256 _r00 = _mm256_loadu_ps(r0);
-        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-        __m256 _r10 = _mm256_loadu_ps(r1);
-        __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-        __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-        __m256 _r20 = _mm256_loadu_ps(r2);
-        __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-        __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+        __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+        __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+        __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+        __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+        __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+        __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+        __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+        __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-        _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
         if (has_act) {
           _sum0 = activation8_m256(_sum0, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data, _sum0);
+        __lasx_xvst(_sum0, output_data, 0);
 
         __m256 _sum1 = _bias0;
-        __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-        __m256 _r13 = _mm256_loadu_ps(r1 + 24);
-        __m256 _r23 = _mm256_loadu_ps(r2 + 24);
+        __m256 _r03 = (__m256)__lasx_xvld(r0 + 24, 0);
+        __m256 _r13 = (__m256)__lasx_xvld(r1 + 24, 0);
+        __m256 _r23 = (__m256)__lasx_xvld(r2 + 24, 0);
 
-        _sum1 = _mm256_fmadd_ps(_k00, _r01, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k01, _r02, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k02, _r03, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k10, _r11, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k11, _r12, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k12, _r13, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k20, _r21, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k21, _r22, _sum1);
-        _sum1 = _mm256_fmadd_ps(_k22, _r23, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k00, _r01, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k01, _r02, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k02, _r03, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k10, _r11, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k11, _r12, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k12, _r13, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k20, _r21, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k21, _r22, _sum1);
+        _sum1 = __lasx_xvfmadd_s(_k22, _r23, _sum1);
 
         if (has_act) {
           _sum1 = activation8_m256(_sum1, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data + 8, _sum1);
+        __lasx_xvst(_sum1, output_data + 8, 0);
 
         r0 += 16;
         r1 += 16;
@@ -407,30 +407,30 @@ void conv_depthwise_3x3s1_m256(lite::Tensor* input,
       for (; j < output_width; ++j) {
         __m256 _sum0 = _bias0;
 
-        __m256 _r00 = _mm256_loadu_ps(r0);
-        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-        __m256 _r10 = _mm256_loadu_ps(r1);
-        __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-        __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-        __m256 _r20 = _mm256_loadu_ps(r2);
-        __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-        __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+        __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+        __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+        __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+        __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+        __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+        __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+        __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+        __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-        _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-        _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+        _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
         if (has_act) {
           _sum0 = activation8_m256(_sum0, act_type, act_param);
         }
-        _mm256_storeu_ps(output_data, _sum0);
+        __lasx_xvst(_sum0, output_data, 0);
 
         r0 += 8;
         r1 += 8;
@@ -485,8 +485,8 @@ void conv_depthwise_3x3s2_m256(lite::Tensor* input,
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
-      __m256 _bias0 = bias ? _mm256_loadu_ps(bias->data<float>() + ic * 8)
-                           : _mm256_set1_ps(0.f);
+      __m256 _bias0 = bias ? (__m256)__lasx_xvld(bias->data<float>() + ic * 8, 0)
+                           : (__m256)__lasx_xvreplgr2vr_w(0);
 
       const float* k0 = filter_data + ic * filter_channel_step;
 
@@ -495,114 +495,114 @@ void conv_depthwise_3x3s2_m256(lite::Tensor* input,
       const float* r1 = r0 + input_group_step;
       const float* r2 = r1 + input_group_step;
 
-      __m256 _k00 = _mm256_loadu_ps(k0);
-      __m256 _k01 = _mm256_loadu_ps(k0 + 8);
-      __m256 _k02 = _mm256_loadu_ps(k0 + 16);
-      __m256 _k10 = _mm256_loadu_ps(k0 + 24);
-      __m256 _k11 = _mm256_loadu_ps(k0 + 32);
-      __m256 _k12 = _mm256_loadu_ps(k0 + 40);
-      __m256 _k20 = _mm256_loadu_ps(k0 + 48);
-      __m256 _k21 = _mm256_loadu_ps(k0 + 56);
-      __m256 _k22 = _mm256_loadu_ps(k0 + 64);
+      __m256 _k00 = (__m256)__lasx_xvld(k0, 0);
+      __m256 _k01 = (__m256)__lasx_xvld(k0 + 8, 0);
+      __m256 _k02 = (__m256)__lasx_xvld(k0 + 16, 0);
+      __m256 _k10 = (__m256)__lasx_xvld(k0 + 24, 0);
+      __m256 _k11 = (__m256)__lasx_xvld(k0 + 32, 0);
+      __m256 _k12 = (__m256)__lasx_xvld(k0 + 40, 0);
+      __m256 _k20 = (__m256)__lasx_xvld(k0 + 48, 0);
+      __m256 _k21 = (__m256)__lasx_xvld(k0 + 56, 0);
+      __m256 _k22 = (__m256)__lasx_xvld(k0 + 64, 0);
 
       for (int i = 0; i < output_height; ++i) {
         int j = 0;
         for (; j + 3 < output_width; j += 4) {
           __m256 _sum0 = _bias0;
 
-          __m256 _r00 = _mm256_loadu_ps(r0);
-          __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-          __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-          __m256 _r10 = _mm256_loadu_ps(r1);
-          __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-          __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-          __m256 _r20 = _mm256_loadu_ps(r2);
-          __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-          __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+          __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+          __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+          __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+          __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+          __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+          __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+          __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+          __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+          __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-          _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
           if (has_act) {
             _sum0 = activation8_m256(_sum0, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data, _sum0);
+          __lasx_xvst(_sum0, output_data, 0);
 
           __m256 _sum1 = _bias0;
-          __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-          __m256 _r13 = _mm256_loadu_ps(r1 + 24);
-          __m256 _r23 = _mm256_loadu_ps(r2 + 24);
-          __m256 _r04 = _mm256_loadu_ps(r0 + 32);
-          __m256 _r14 = _mm256_loadu_ps(r1 + 32);
-          __m256 _r24 = _mm256_loadu_ps(r2 + 32);
+          __m256 _r03 = (__m256)__lasx_xvld(r0 + 24, 0);
+          __m256 _r13 = (__m256)__lasx_xvld(r1 + 24, 0);
+          __m256 _r23 = (__m256)__lasx_xvld(r2 + 24, 0);
+          __m256 _r04 = (__m256)__lasx_xvld(r0 + 32, 0);
+          __m256 _r14 = (__m256)__lasx_xvld(r1 + 32, 0);
+          __m256 _r24 = (__m256)__lasx_xvld(r2 + 32, 0);
 
-          _sum1 = _mm256_fmadd_ps(_k00, _r02, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k01, _r03, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k02, _r04, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k10, _r12, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k11, _r13, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k12, _r14, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k20, _r22, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k21, _r23, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k22, _r24, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k00, _r02, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k01, _r03, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k02, _r04, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k10, _r12, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k11, _r13, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k12, _r14, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k20, _r22, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k21, _r23, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k22, _r24, _sum1);
 
           if (has_act) {
             _sum1 = activation8_m256(_sum1, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data + 8, _sum1);
+          __lasx_xvst(_sum1, output_data + 8, 0);
 
           __m256 _sum2 = _bias0;
-          __m256 _r05 = _mm256_loadu_ps(r0 + 40);
-          __m256 _r15 = _mm256_loadu_ps(r1 + 40);
-          __m256 _r25 = _mm256_loadu_ps(r2 + 40);
-          __m256 _r06 = _mm256_loadu_ps(r0 + 48);
-          __m256 _r16 = _mm256_loadu_ps(r1 + 48);
-          __m256 _r26 = _mm256_loadu_ps(r2 + 48);
+          __m256 _r05 = (__m256)__lasx_xvld(r0 + 40, 0);
+          __m256 _r15 = (__m256)__lasx_xvld(r1 + 40, 0);
+          __m256 _r25 = (__m256)__lasx_xvld(r2 + 40, 0);
+          __m256 _r06 = (__m256)__lasx_xvld(r0 + 48, 0);
+          __m256 _r16 = (__m256)__lasx_xvld(r1 + 48, 0);
+          __m256 _r26 = (__m256)__lasx_xvld(r2 + 48, 0);
 
-          _sum2 = _mm256_fmadd_ps(_k00, _r04, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k01, _r05, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k02, _r06, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k10, _r14, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k11, _r15, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k12, _r16, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k20, _r24, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k21, _r25, _sum2);
-          _sum2 = _mm256_fmadd_ps(_k22, _r26, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k00, _r04, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k01, _r05, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k02, _r06, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k10, _r14, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k11, _r15, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k12, _r16, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k20, _r24, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k21, _r25, _sum2);
+          _sum2 = __lasx_xvfmadd_s(_k22, _r26, _sum2);
 
           if (has_act) {
             _sum2 = activation8_m256(_sum2, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data + 16, _sum2);
+          __lasx_xvst(_sum2, output_data + 16, 0);
 
           __m256 _sum3 = _bias0;
-          __m256 _r07 = _mm256_loadu_ps(r0 + 56);
-          __m256 _r17 = _mm256_loadu_ps(r1 + 56);
-          __m256 _r27 = _mm256_loadu_ps(r2 + 56);
-          __m256 _r08 = _mm256_loadu_ps(r0 + 64);
-          __m256 _r18 = _mm256_loadu_ps(r1 + 64);
-          __m256 _r28 = _mm256_loadu_ps(r2 + 64);
+          __m256 _r07 = (__m256)__lasx_xvld(r0 + 56, 0);
+          __m256 _r17 = (__m256)__lasx_xvld(r1 + 56, 0);
+          __m256 _r27 = (__m256)__lasx_xvld(r2 + 56, 0);
+          __m256 _r08 = (__m256)__lasx_xvld(r0 + 64, 0);
+          __m256 _r18 = (__m256)__lasx_xvld(r1 + 64, 0);
+          __m256 _r28 = (__m256)__lasx_xvld(r2 + 64, 0);
 
-          _sum3 = _mm256_fmadd_ps(_k00, _r06, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k01, _r07, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k02, _r08, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k10, _r16, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k11, _r17, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k12, _r18, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k20, _r26, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k21, _r27, _sum3);
-          _sum3 = _mm256_fmadd_ps(_k22, _r28, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k00, _r06, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k01, _r07, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k02, _r08, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k10, _r16, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k11, _r17, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k12, _r18, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k20, _r26, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k21, _r27, _sum3);
+          _sum3 = __lasx_xvfmadd_s(_k22, _r28, _sum3);
 
           if (has_act) {
             _sum3 = activation8_m256(_sum3, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data + 24, _sum3);
+          __lasx_xvst(_sum3, output_data + 24, 0);
 
           r0 += 2 * 32;
           r1 += 2 * 32;
@@ -612,53 +612,53 @@ void conv_depthwise_3x3s2_m256(lite::Tensor* input,
         for (; j + 1 < output_width; j += 2) {
           __m256 _sum0 = _bias0;
 
-          __m256 _r00 = _mm256_loadu_ps(r0);
-          __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-          __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-          __m256 _r10 = _mm256_loadu_ps(r1);
-          __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-          __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-          __m256 _r20 = _mm256_loadu_ps(r2);
-          __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-          __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+          __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+          __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+          __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+          __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+          __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+          __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+          __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+          __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+          __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-          _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
           if (has_act) {
             _sum0 = activation8_m256(_sum0, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data, _sum0);
+          __lasx_xvst(_sum0, output_data, 0);
 
           __m256 _sum1 = _bias0;
-          __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-          __m256 _r13 = _mm256_loadu_ps(r1 + 24);
-          __m256 _r23 = _mm256_loadu_ps(r2 + 24);
-          __m256 _r04 = _mm256_loadu_ps(r0 + 32);
-          __m256 _r14 = _mm256_loadu_ps(r1 + 32);
-          __m256 _r24 = _mm256_loadu_ps(r2 + 32);
+          __m256 _r03 = (__m256)__lasx_xvld(r0 + 24, 0);
+          __m256 _r13 = (__m256)__lasx_xvld(r1 + 24, 0);
+          __m256 _r23 = (__m256)__lasx_xvld(r2 + 24, 0);
+          __m256 _r04 = (__m256)__lasx_xvld(r0 + 32, 0);
+          __m256 _r14 = (__m256)__lasx_xvld(r1 + 32, 0);
+          __m256 _r24 = (__m256)__lasx_xvld(r2 + 32, 0);
 
-          _sum1 = _mm256_fmadd_ps(_k00, _r02, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k01, _r03, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k02, _r04, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k10, _r12, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k11, _r13, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k12, _r14, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k20, _r22, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k21, _r23, _sum1);
-          _sum1 = _mm256_fmadd_ps(_k22, _r24, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k00, _r02, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k01, _r03, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k02, _r04, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k10, _r12, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k11, _r13, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k12, _r14, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k20, _r22, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k21, _r23, _sum1);
+          _sum1 = __lasx_xvfmadd_s(_k22, _r24, _sum1);
 
           if (has_act) {
             _sum1 = activation8_m256(_sum1, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data + 8, _sum1);
+          __lasx_xvst(_sum1, output_data + 8, 0);
 
           r0 += 2 * 16;
           r1 += 2 * 16;
@@ -668,30 +668,30 @@ void conv_depthwise_3x3s2_m256(lite::Tensor* input,
         for (; j < output_width; j++) {
           __m256 _sum0 = _bias0;
 
-          __m256 _r00 = _mm256_loadu_ps(r0);
-          __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-          __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-          __m256 _r10 = _mm256_loadu_ps(r1);
-          __m256 _r11 = _mm256_loadu_ps(r1 + 8);
-          __m256 _r12 = _mm256_loadu_ps(r1 + 16);
-          __m256 _r20 = _mm256_loadu_ps(r2);
-          __m256 _r21 = _mm256_loadu_ps(r2 + 8);
-          __m256 _r22 = _mm256_loadu_ps(r2 + 16);
+          __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
+          __m256 _r01 = (__m256)__lasx_xvld(r0 + 8, 0);
+          __m256 _r02 = (__m256)__lasx_xvld(r0 + 16, 0);
+          __m256 _r10 = (__m256)__lasx_xvld(r1, 0);
+          __m256 _r11 = (__m256)__lasx_xvld(r1 + 8, 0);
+          __m256 _r12 = (__m256)__lasx_xvld(r1 + 16, 0);
+          __m256 _r20 = (__m256)__lasx_xvld(r2, 0);
+          __m256 _r21 = (__m256)__lasx_xvld(r2 + 8, 0);
+          __m256 _r22 = (__m256)__lasx_xvld(r2 + 16, 0);
 
-          _sum0 = _mm256_fmadd_ps(_k00, _r00, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k01, _r01, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k02, _r02, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k10, _r10, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k11, _r11, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k12, _r12, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k20, _r20, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k21, _r21, _sum0);
-          _sum0 = _mm256_fmadd_ps(_k22, _r22, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k00, _r00, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k01, _r01, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k02, _r02, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k10, _r10, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k11, _r11, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k12, _r12, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k20, _r20, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k21, _r21, _sum0);
+          _sum0 = __lasx_xvfmadd_s(_k22, _r22, _sum0);
 
           if (has_act) {
             _sum0 = activation8_m256(_sum0, act_type, act_param);
           }
-          _mm256_storeu_ps(output_data, _sum0);
+          __lasx_xvst(_sum0, output_data, 0);
 
           r0 += 2 * 8;
           r1 += 2 * 8;
@@ -771,26 +771,26 @@ void conv_depthwise_m256(lite::Tensor* input,
       const float* filter_ptr = filter_data + ic * filter_channel_step;
       for (int i = 0; i < output_height; ++i) {
         for (int j = 0; j < output_width; ++j) {
-          __m256 _sum = _mm256_set1_ps(0.f);
+          __m256 _sum = __lasx_xvreplgr2vr_w(0);
 
           if (bias) {
-            _sum = _mm256_loadu_ps((bias->data<float>()) + ic * 8);
+            _sum = __lasx_xvld((bias->data<float>()) + ic * 8, 0);
           }
 
           const float* start_ptr =
               input_ptr + i * input_group_step + j * 8 * stride_w;
 
           for (int k = 0; k < filter_kernel_size; k++) {
-            __m256 _input = _mm256_loadu_ps(start_ptr + +space_ofs[k] * 8);
-            __m256 _filter = _mm256_loadu_ps(filter_ptr + k * 8);
-            _sum = _mm256_fmadd_ps(_input, _filter, _sum);
+            __m256 _input = (__m256)__lasx_xvld(start_ptr + +space_ofs[k] * 8, 0);
+            __m256 _filter = (__m256)__lasx_xvld(filter_ptr + k * 8, 0);
+            _sum = __lasx_xvfmadd_s(_input, _filter, _sum);
           }
 
           if (has_act) {
             _sum = activation8_m256(_sum, act_type, act_param);
           }
 
-          _mm256_storeu_ps(output_data, _sum);
+          __lasx_xvst(_sum, output_data, 0);
           output_data += 8;
         }
       }
@@ -799,6 +799,6 @@ void conv_depthwise_m256(lite::Tensor* input,
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

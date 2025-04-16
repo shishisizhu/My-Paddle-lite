@@ -18,7 +18,7 @@ limitations under the License. */
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 void gemm_kernel_loop_int8(int M,
@@ -46,6 +46,6 @@ void gemm_kernel_loop_int8(int M,
                            float relu_alpha);
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

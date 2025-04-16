@@ -12,12 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "lite/backends/x86/math/avx/conv_utils.h"
+#include "lite/backends/loongarch/math/conv_utils.h"
 #include <algorithm>
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 // tranpose [chout, chin, wh, ww] to [chout/block,chin,wh,ww,block]
@@ -90,29 +90,29 @@ static inline void transpose4x8_ps(__m256& row0,  // NOLINT
                                    __m256& row3   // NOLINT
                                    ) {
   // vtmp0=a0b0a1b1a4b4a5b5
-  __m256 vtmp0 = _mm256_unpacklo_ps(row0, row1);
+  __m256 vtmp0 = __lasx_xvilvl_w(row1, row0);
   // vtmp1=a2b2a3b3a6b6a7b7
-  __m256 vtmp1 = _mm256_unpackhi_ps(row0, row1);
+  __m256 vtmp1 = __lasx_xvilvh_w(row1, row0);
   // vtmp2=c0d0c1d1c4d4c5d5
-  __m256 vtmp2 = _mm256_unpacklo_ps(row2, row3);
+  __m256 vtmp2 = __lasx_xvilvl_w(row3, row2);
   // vtmp3=c2d2c3d3c6d6c7d7
-  __m256 vtmp3 = _mm256_unpackhi_ps(row2, row3);
+  __m256 vtmp3 = __lasx_xvilvh_w(row3, row2);
   // vres0=a0b0c0d0a4b4c4d4
-  __m256 vres0 = _mm256_shuffle_ps(vtmp0, vtmp2, 0x44);  // 0xaa=[01,00,01,00]
+  __m256 vres0 = lasx_m256i_shuffle_ps(vtmp0, vtmp2, 0x44);  // 0xaa=[01,00,01,00]
   // vres1=a1b1c1d1a5b5c5d5
-  __m256 vres1 = _mm256_shuffle_ps(vtmp0, vtmp2, 0xee);  // 0xaa=[11,10,11,10]
+  __m256 vres1 = lasx_m256i_shuffle_ps(vtmp0, vtmp2, 0xee);  // 0xaa=[11,10,11,10]
   // vres2=a2b2c2d2a6b6c6d6
-  __m256 vres2 = _mm256_shuffle_ps(vtmp1, vtmp3, 0x44);  // 0xaa=[01,00,01,00]
+  __m256 vres2 = lasx_m256i_shuffle_ps(vtmp1, vtmp3, 0x44);  // 0xaa=[01,00,01,00]
   // vres3=a3b3c3d3a7b7c7d7
-  __m256 vres3 = _mm256_shuffle_ps(vtmp1, vtmp3, 0xee);  // 0xaa=[11,10,11,10]
+  __m256 vres3 = lasx_m256i_shuffle_ps(vtmp1, vtmp3, 0xee);  // 0xaa=[11,10,11,10]
   // row0=a0b0c0d0a1b1c1d1
-  row0 = _mm256_permute2f128_ps(vres0, vres1, 0x20);
+  row0 = __lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x20));
   // row1=a2b2c2d2a3b3c3d3
-  row1 = _mm256_permute2f128_ps(vres2, vres3, 0x20);
+  row1 = __lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x20));
   // row2=a4b4c4d4a5b5c5d5
-  row2 = _mm256_permute2f128_ps(vres0, vres1, 0x31);
+  row2 = __lasx_xvpermi_q(vres0, vres1, CONVERT_IMM8(0x31));
   // row3=a6b6c6d6a7b7c7d7
-  row3 = _mm256_permute2f128_ps(vres2, vres3, 0x31);
+  row3 = __lasx_xvpermi_q(vres2, vres3, CONVERT_IMM8(0x31));
 }
 
 // input  [bs, ic, ih, iw] => [bs, ic/8, ih, iw, 8]
@@ -156,32 +156,27 @@ void pack8_m256(lite::Tensor* input,
       const float* r6 = (input_ptr + kernel_size * 6);
       const float* r7 = (input_ptr + kernel_size * 7);
 
-#if __AVX__
       int loop_num = kernel_size >> 3;
       int remain = kernel_size & 7;
-#else
-      int remain = kernel_size;
-#endif
 
-#if __AVX__
       for (; loop_num > 0; loop_num--) {
-        __m256 _row0 = _mm256_loadu_ps(r0);
-        __m256 _row1 = _mm256_loadu_ps(r1);
-        __m256 _row2 = _mm256_loadu_ps(r2);
-        __m256 _row3 = _mm256_loadu_ps(r3);
-        __m256 _row4 = _mm256_loadu_ps(r4);
-        __m256 _row5 = _mm256_loadu_ps(r5);
-        __m256 _row6 = _mm256_loadu_ps(r6);
-        __m256 _row7 = _mm256_loadu_ps(r7);
+        __m256 _row0 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _row1 = (__m256)__lasx_xvld(r1, 0);
+        __m256 _row2 = (__m256)__lasx_xvld(r2, 0);
+        __m256 _row3 = (__m256)__lasx_xvld(r3, 0);
+        __m256 _row4 = (__m256)__lasx_xvld(r4, 0);
+        __m256 _row5 = (__m256)__lasx_xvld(r5, 0);
+        __m256 _row6 = (__m256)__lasx_xvld(r6, 0);
+        __m256 _row7 = (__m256)__lasx_xvld(r7, 0);
         transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-        _mm256_storeu_ps(output_data, _row0);
-        _mm256_storeu_ps(output_data + 8, _row1);
-        _mm256_storeu_ps(output_data + 16, _row2);
-        _mm256_storeu_ps(output_data + 24, _row3);
-        _mm256_storeu_ps(output_data + 32, _row4);
-        _mm256_storeu_ps(output_data + 40, _row5);
-        _mm256_storeu_ps(output_data + 48, _row6);
-        _mm256_storeu_ps(output_data + 56, _row7);
+        __lasx_xvst(_row0, output_data, 0)
+        __lasx_xvst(_row1, output_data + 8, 0)
+        __lasx_xvst(_row2, output_data + 16, 0)
+        __lasx_xvst(_row3, output_data + 24, 0)
+        __lasx_xvst(_row4, output_data + 32, 0)
+        __lasx_xvst(_row5, output_data + 40, 0)
+        __lasx_xvst(_row6, output_data + 48, 0);
+        __lasx_xvst(_row7, output_data + 56, 0);
         r0 += 8;
         r1 += 8;
         r2 += 8;
@@ -192,7 +187,6 @@ void pack8_m256(lite::Tensor* input,
         r7 += 8;
         output_data += 64;
       }
-#endif
 
       for (; remain > 0; remain--) {
         output_data[0] = *r0++;
@@ -246,31 +240,25 @@ void pack4_m128(lite::Tensor* input,
       const float* r2 = (input_ptr + kernel_size * 2);
       const float* r3 = (input_ptr + kernel_size * 3);
 
-#if __AVX__
       int loop_num = kernel_size >> 2;
       int remain = kernel_size & 3;
-#else
-      int remain = kernel_size;
-#endif
 
-#if __AVX__
       for (; loop_num > 0; loop_num--) {
-        __m128 _row0 = _mm_loadu_ps(r0);
-        __m128 _row1 = _mm_loadu_ps(r1);
-        __m128 _row2 = _mm_loadu_ps(r2);
-        __m128 _row3 = _mm_loadu_ps(r3);
+        __m128 _row0 = (__m128)__lsx_vld(r0, 0);
+        __m128 _row1 = (__m128)__lsx_vld(r1, 0);
+        __m128 _row2 = (__m128)__lsx_vld(r2, 0);
+        __m128 _row3 = (__m128)__lsx_vld(r3, 0);
         _MM_TRANSPOSE4_PS(_row0, _row1, _row2, _row3);
-        _mm_storeu_ps(output_data, _row0);
-        _mm_storeu_ps(output_data + 4, _row1);
-        _mm_storeu_ps(output_data + 8, _row2);
-        _mm_storeu_ps(output_data + 12, _row3);
+        __lsx_vst(_row0, output_data, 0);
+        __lsx_vst(_row1, output_data + 4, 0);
+        __lsx_vst(_row2, output_data + 8, 0);
+        __lsx_vst(_row3, output_data + 12, 0);
         r0 += 4;
         r1 += 4;
         r2 += 4;
         r3 += 4;
         output_data += 16;
       }
-#endif
 
       for (; remain > 0; remain--) {
         output_data[0] = *r0++;
@@ -313,32 +301,28 @@ void unpack8_m256(lite::Tensor* input, lite::Tensor* output) {
       float* outptr6 = (output_ptr + kernel_size * 6);
       float* outptr7 = (output_ptr + kernel_size * 7);
 
-#if __AVX__
       int loop_num = kernel_size >> 3;
       int remain = kernel_size & 7;
-#else
-      int remain = kernel_size;
-#endif
 
-#if __AVX__
+
       for (; loop_num > 0; loop_num--) {
-        __m256 _row0 = _mm256_loadu_ps(r0);
-        __m256 _row1 = _mm256_loadu_ps(r0 + 8);
-        __m256 _row2 = _mm256_loadu_ps(r0 + 16);
-        __m256 _row3 = _mm256_loadu_ps(r0 + 24);
-        __m256 _row4 = _mm256_loadu_ps(r0 + 32);
-        __m256 _row5 = _mm256_loadu_ps(r0 + 40);
-        __m256 _row6 = _mm256_loadu_ps(r0 + 48);
-        __m256 _row7 = _mm256_loadu_ps(r0 + 56);
+        __m256 _row0 = (__m256)__lasx_xvld(r0, 0);
+        __m256 _row1 = (__m256)__lasx_xvld(r0 + 8, 0);
+        __m256 _row2 = (__m256)__lasx_xvld(r0 + 16, 0);
+        __m256 _row3 = (__m256)__lasx_xvld(r0 + 24, 0);
+        __m256 _row4 = (__m256)__lasx_xvld(r0 + 32, 0);
+        __m256 _row5 = (__m256)__lasx_xvld(r0 + 40, 0);
+        __m256 _row6 = (__m256)__lasx_xvld(r0 + 48, 0);
+        __m256 _row7 = (__m256)__lasx_xvld(r0 + 56, 0);
         transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-        _mm256_storeu_ps(outptr0, _row0);
-        _mm256_storeu_ps(outptr1, _row1);
-        _mm256_storeu_ps(outptr2, _row2);
-        _mm256_storeu_ps(outptr3, _row3);
-        _mm256_storeu_ps(outptr4, _row4);
-        _mm256_storeu_ps(outptr5, _row5);
-        _mm256_storeu_ps(outptr6, _row6);
-        _mm256_storeu_ps(outptr7, _row7);
+        __lasx_xvst(_row0, outptr0, 0);
+        __lasx_xvst(_row1, outptr1, 0);
+        __lasx_xvst(_row2, outptr2, 0);
+        __lasx_xvst(_row3, outptr3, 0);
+        __lasx_xvst(_row4, outptr4, 0);
+        __lasx_xvst(_row5, outptr5, 0);
+        __lasx_xvst(_row6, outptr6, 0);
+        __lasx_xvst(_row7, outptr7, 0);
         r0 += 64;
         outptr0 += 8;
         outptr1 += 8;
@@ -349,7 +333,6 @@ void unpack8_m256(lite::Tensor* input, lite::Tensor* output) {
         outptr6 += 8;
         outptr7 += 8;
       }
-#endif
 
       for (; remain > 0; remain--) {
         *outptr0++ = r0[0];
@@ -392,31 +375,25 @@ void unpack4_m128(lite::Tensor* input, lite::Tensor* output) {
       float* outptr2 = (output_ptr + kernel_size * 2);
       float* outptr3 = (output_ptr + kernel_size * 3);
 
-#if __AVX__
       int loop_num = kernel_size >> 2;
       int remain = kernel_size & 3;
-#else
-      int remain = kernel_size;
-#endif
 
-#if __AVX__
       for (; loop_num > 0; loop_num--) {
-        __m128 _row0 = _mm_loadu_ps(r0);
-        __m128 _row1 = _mm_loadu_ps(r0 + 4);
-        __m128 _row2 = _mm_loadu_ps(r0 + 8);
-        __m128 _row3 = _mm_loadu_ps(r0 + 12);
+        __m128 _row0 = (__m128)__lsx_vld(r0, 0);
+        __m128 _row1 = (__m128)__lsx_vld(r0 + 4, 0);
+        __m128 _row2 = (__m128)__lsx_vld(r0 + 8, 0);
+        __m128 _row3 = (__m128)__lsx_vld(r0 + 12, 0);
         _MM_TRANSPOSE4_PS(_row0, _row1, _row2, _row3);
-        _mm_storeu_ps(outptr0, _row0);
-        _mm_storeu_ps(outptr1, _row1);
-        _mm_storeu_ps(outptr2, _row2);
-        _mm_storeu_ps(outptr3, _row3);
+        __lsx_vst(_row0, outptr0, 0);
+        __lsx_vst(_row1, outptr1, 0);
+        __lsx_vst(_row2, outptr2, 0);
+        __lsx_vst(_row3, outptr3, 0);
         r0 += 16;
         outptr0 += 4;
         outptr1 += 4;
         outptr2 += 4;
         outptr3 += 4;
       }
-#endif
 
       for (; remain > 0; remain--) {
         *outptr0++ = r0[0];
@@ -461,34 +438,34 @@ void padding8_m256(lite::Tensor* input,
   int top_size = top * out_width;
   int bottom_size = bottom * out_width;
 
-  __m256 pad_val = _mm256_set1_ps(0.f);
+  __m256 pad_val = __lasx_xvreplgr2vr_w(0);
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
       // fill top
       for (int y = 0; y < top_size; ++y) {
-        _mm256_storeu_ps(output_data, pad_val);
+        __lasx_xvst(pad_val, output_data, 0);
         output_data += 8;
       }
       // fill center
       for (int y = 0; y < input_height; ++y) {
         for (int x = 0; x < left; ++x) {
-          _mm256_storeu_ps(output_data, pad_val);
+          __lasx_xvst(pad_val, output_data, 0);
           output_data += 8;
         }
         for (int x = 0; x < input_width; ++x) {
-          _mm256_storeu_ps(output_data, _mm256_loadu_ps(input_data));
+          __lasx_xvst(__lasx_xvld(input_data, 0), output_data, 0);
           input_data += 8;
           output_data += 8;
         }
         for (int x = 0; x < right; ++x) {
-          _mm256_storeu_ps(output_data, pad_val);
+          __lasx_xvst(pad_val, output_data, 0);
           output_data += 8;
         }
       }
       // fill bottom
       for (int y = 0; y < bottom_size; ++y) {
-        _mm256_storeu_ps(output_data, pad_val);
+        __lasx_xvst(pad_val, output_data, 0);
         output_data += 8;
       }
     }
@@ -527,34 +504,34 @@ void padding4_m128(lite::Tensor* input,
   int top_size = top * out_width;
   int bottom_size = bottom * out_width;
 
-  __m128 pad_val = _mm_set1_ps(0.f);
+  __m128 pad_val = (__m128)__lsx_vreplgr2vr_w(0);
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
       // fill top
       for (int y = 0; y < top_size; ++y) {
-        _mm_storeu_ps(output_data, pad_val);
+        __lsx_vst(pad_val, output_data, 0);
         output_data += 4;
       }
       // fill center
       for (int y = 0; y < input_height; ++y) {
         for (int x = 0; x < left; ++x) {
-          _mm_storeu_ps(output_data, pad_val);
+          __lsx_vst(pad_val, output_data, 0);
           output_data += 4;
         }
         for (int x = 0; x < input_width; ++x) {
-          _mm_storeu_ps(output_data, _mm_loadu_ps(input_data));
+          __lsx_vst((__m128)__lsx_vld(input_data, 0), output_data, 0);
           input_data += 4;
           output_data += 4;
         }
         for (int x = 0; x < right; ++x) {
-          _mm_storeu_ps(output_data, pad_val);
+          __lsx_vst(pad_val, output_data, 0);
           output_data += 4;
         }
       }
       // fill bottom
       for (int y = 0; y < bottom_size; ++y) {
-        _mm_storeu_ps(output_data, pad_val);
+        __lsx_vst(pad_val, output_data, 0);
         output_data += 4;
       }
     }
@@ -649,7 +626,7 @@ void pack_padding8_m256(lite::Tensor* input,
   int top_size = top * out_width;
   int bottom_size = bottom * out_width;
 
-  __m256 pad_val = _mm256_set1_ps(0.f);
+  __m256 pad_val = __lasx_xvreplgr2vr_w(0);
 
   for (int bs = 0; bs < batch_size; ++bs) {
     for (int ic = 0; ic < channel_num; ++ic) {
@@ -666,35 +643,35 @@ void pack_padding8_m256(lite::Tensor* input,
 
       // fill top
       for (int y = 0; y < top_size; ++y) {
-        _mm256_storeu_ps(output_data, pad_val);
+        __lasx_xvst(pad_val, output_data, 0);
         output_data += 8;
       }
       // fill center
       for (int y = 0; y < input_height; ++y) {
         for (int x = 0; x < left; ++x) {
-          _mm256_storeu_ps(output_data, pad_val);
+          __lasx_xvst(pad_val, output_data, 0);
           output_data += 8;
         }
         // pack and transpose
         int pos = 0;
         for (; pos + 7 < input_width; pos += 8) {
-          __m256 _row0 = _mm256_loadu_ps(r0);
-          __m256 _row1 = _mm256_loadu_ps(r1);
-          __m256 _row2 = _mm256_loadu_ps(r2);
-          __m256 _row3 = _mm256_loadu_ps(r3);
-          __m256 _row4 = _mm256_loadu_ps(r4);
-          __m256 _row5 = _mm256_loadu_ps(r5);
-          __m256 _row6 = _mm256_loadu_ps(r6);
-          __m256 _row7 = _mm256_loadu_ps(r7);
+          __m256 _row0 = (__m256)__lasx_xvld(r0, 0);
+          __m256 _row1 = (__m256)__lasx_xvld(r1, 0);
+          __m256 _row2 = (__m256)__lasx_xvld(r2, 0);
+          __m256 _row3 = (__m256)__lasx_xvld(r3, 0);
+          __m256 _row4 = (__m256)__lasx_xvld(r4, 0);
+          __m256 _row5 = (__m256)__lasx_xvld(r5, 0);
+          __m256 _row6 = (__m256)__lasx_xvld(r6, 0);
+          __m256 _row7 = (__m256)__lasx_xvld(r7, 0);
           transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-          _mm256_storeu_ps(output_data, _row0);
-          _mm256_storeu_ps(output_data + 8, _row1);
-          _mm256_storeu_ps(output_data + 16, _row2);
-          _mm256_storeu_ps(output_data + 24, _row3);
-          _mm256_storeu_ps(output_data + 32, _row4);
-          _mm256_storeu_ps(output_data + 40, _row5);
-          _mm256_storeu_ps(output_data + 48, _row6);
-          _mm256_storeu_ps(output_data + 56, _row7);
+          __lasx_xvst(_row0, output_data, 0);
+          __lasx_xvst(_row1, output_data + 8, 0);
+          __lasx_xvst(_row2, output_data + 16, 0);
+          __lasx_xvst(_row3, output_data + 24, 0);
+          __lasx_xvst(_row4, output_data + 32, 0);
+          __lasx_xvst(_row5, output_data + 40, 0);
+          __lasx_xvst(_row6, output_data + 48, 0);
+          __lasx_xvst(_row7, output_data + 56, 0);
           r0 += 8;
           r1 += 8;
           r2 += 8;
@@ -719,13 +696,13 @@ void pack_padding8_m256(lite::Tensor* input,
         }
 
         for (int x = 0; x < right; ++x) {
-          _mm256_storeu_ps(output_data, pad_val);
+          __lasx_xvst(pad_val, output_data, 0);
           output_data += 8;
         }
       }
       // fill bottom
       for (int y = 0; y < bottom_size; ++y) {
-        _mm256_storeu_ps(output_data, pad_val);
+        __lasx_xvst(pad_val, output_data, 0);
         output_data += 8;
       }
     }
@@ -775,23 +752,23 @@ void packC8_common(const float* din,
       int j = 0;
       if (c + 7 < channel) {
         for (; j + 7 < w_in; j += 8) {
-          __m256 _row0 = _mm256_loadu_ps(dinr0);
-          __m256 _row1 = _mm256_loadu_ps(dinr1);
-          __m256 _row2 = _mm256_loadu_ps(dinr2);
-          __m256 _row3 = _mm256_loadu_ps(dinr3);
-          __m256 _row4 = _mm256_loadu_ps(dinr4);
-          __m256 _row5 = _mm256_loadu_ps(dinr5);
-          __m256 _row6 = _mm256_loadu_ps(dinr6);
-          __m256 _row7 = _mm256_loadu_ps(dinr7);
+          __m256 _row0 = (__m256)__lasx_xvld(dinr0, 0);
+          __m256 _row1 = (__m256)__lasx_xvld(dinr1, 0);
+          __m256 _row2 = (__m256)__lasx_xvld(dinr2, 0);
+          __m256 _row3 = (__m256)__lasx_xvld(dinr3, 0);
+          __m256 _row4 = (__m256)__lasx_xvld(dinr4, 0);
+          __m256 _row5 = (__m256)__lasx_xvld(dinr5, 0);
+          __m256 _row6 = (__m256)__lasx_xvld(dinr6, 0);
+          __m256 _row7 = (__m256)__lasx_xvld(dinr7, 0);
           transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-          _mm256_storeu_ps(douth, _row0);
-          _mm256_storeu_ps(douth + 8, _row1);
-          _mm256_storeu_ps(douth + 16, _row2);
-          _mm256_storeu_ps(douth + 24, _row3);
-          _mm256_storeu_ps(douth + 32, _row4);
-          _mm256_storeu_ps(douth + 40, _row5);
-          _mm256_storeu_ps(douth + 48, _row6);
-          _mm256_storeu_ps(douth + 56, _row7);
+          __lasx_xvst(_row0, douth, 0);
+          __lasx_xvst(_row1, douth + 8, 0);
+          __lasx_xvst(_row2, douth + 16, 0);
+          __lasx_xvst(_row3, douth + 24, 0);
+          __lasx_xvst(_row4, douth + 32, 0);
+          __lasx_xvst(_row5, douth + 40, 0);
+          __lasx_xvst(_row6, douth + 48, 0);
+          __lasx_xvst(_row7, douth + 56, 0);
           dinr0 += 8;
           dinr1 += 8;
           dinr2 += 8;
@@ -815,31 +792,31 @@ void packC8_common(const float* din,
           douth += 8;
         }
       } else {
-        __m256 _row0 = _mm256_setzero_ps();
-        __m256 _row1 = _mm256_setzero_ps();
-        __m256 _row2 = _mm256_setzero_ps();
-        __m256 _row3 = _mm256_setzero_ps();
-        __m256 _row4 = _mm256_setzero_ps();
-        __m256 _row5 = _mm256_setzero_ps();
-        __m256 _row6 = _mm256_setzero_ps();
-        __m256 _row7 = _mm256_setzero_ps();
+        __m256 _row0 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row1 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row2 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row3 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row4 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row5 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row6 = __lasx_xvreplgr2vr_d(0);
+        __m256 _row7 = __lasx_xvreplgr2vr_d(0);
         for (; j + 7 < w_in; j += 8) {
-          _row0 = _mm256_loadu_ps(dinr0);
-          if (channel - c > 1) _row1 = _mm256_loadu_ps(dinr1);
-          if (channel - c > 2) _row2 = _mm256_loadu_ps(dinr2);
-          if (channel - c > 3) _row3 = _mm256_loadu_ps(dinr3);
-          if (channel - c > 4) _row4 = _mm256_loadu_ps(dinr4);
-          if (channel - c > 5) _row5 = _mm256_loadu_ps(dinr5);
-          if (channel - c > 6) _row6 = _mm256_loadu_ps(dinr6);
+          _row0 = (__m256)__lasx_xvld(dinr0, 0);
+          if (channel - c > 1) _row1 = (__m256)__lasx_xvld(dinr1, 0);
+          if (channel - c > 2) _row2 = (__m256)__lasx_xvld(dinr2, 0);
+          if (channel - c > 3) _row3 = (__m256)__lasx_xvld(dinr3, 0);
+          if (channel - c > 4) _row4 = (__m256)__lasx_xvld(dinr4, 0);
+          if (channel - c > 5) _row5 = (__m256)__lasx_xvld(dinr5, 0);
+          if (channel - c > 6) _row6 = (__m256)__lasx_xvld(dinr6, 0);
           transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-          _mm256_storeu_ps(douth, _row0);
-          _mm256_storeu_ps(douth + 8, _row1);
-          _mm256_storeu_ps(douth + 16, _row2);
-          _mm256_storeu_ps(douth + 24, _row3);
-          _mm256_storeu_ps(douth + 32, _row4);
-          _mm256_storeu_ps(douth + 40, _row5);
-          _mm256_storeu_ps(douth + 48, _row6);
-          _mm256_storeu_ps(douth + 56, _row7);
+          __lasx_xvst(_row0, douth, 0);
+          __lasx_xvst(_row1, douth + 8, 0);
+          __lasx_xvst(_row2, douth + 16, 0);
+          __lasx_xvst(_row3, douth + 24, 0);
+          __lasx_xvst(_row4, douth + 32, 0);
+          __lasx_xvst(_row5, douth + 40, 0);
+          __lasx_xvst(_row6, douth + 48, 0);
+          __lasx_xvst(_row7, douth + 56, 0);
           dinr0 += 8;
           dinr1 += 8;
           dinr2 += 8;
@@ -892,23 +869,23 @@ void unpackC8_common(const float* din,
     int j = 0;
     if (c + 7 < channel) {
       for (; j + 7 < size_out_channel; j += 8) {
-        __m256 _row0 = _mm256_loadu_ps(din);
-        __m256 _row1 = _mm256_loadu_ps(din + 8);
-        __m256 _row2 = _mm256_loadu_ps(din + 16);
-        __m256 _row3 = _mm256_loadu_ps(din + 24);
-        __m256 _row4 = _mm256_loadu_ps(din + 32);
-        __m256 _row5 = _mm256_loadu_ps(din + 40);
-        __m256 _row6 = _mm256_loadu_ps(din + 48);
-        __m256 _row7 = _mm256_loadu_ps(din + 56);
+        __m256 _row0 = (__m256)__lasx_xvld(din, 0);
+        __m256 _row1 = (__m256)__lasx_xvld(din + 8, 0);
+        __m256 _row2 = (__m256)__lasx_xvld(din + 16, 0);
+        __m256 _row3 = (__m256)__lasx_xvld(din + 24, 0);
+        __m256 _row4 = (__m256)__lasx_xvld(din + 32, 0);
+        __m256 _row5 = (__m256)__lasx_xvld(din + 40, 0);
+        __m256 _row6 = (__m256)__lasx_xvld(din + 48, 0);
+        __m256 _row7 = (__m256)__lasx_xvld(din + 56, 0);
         transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-        _mm256_storeu_ps(doutr0, _row0);
-        _mm256_storeu_ps(doutr1, _row1);
-        _mm256_storeu_ps(doutr2, _row2);
-        _mm256_storeu_ps(doutr3, _row3);
-        _mm256_storeu_ps(doutr4, _row4);
-        _mm256_storeu_ps(doutr5, _row5);
-        _mm256_storeu_ps(doutr6, _row6);
-        _mm256_storeu_ps(doutr7, _row7);
+        __lasx_xvst(_row0, doutr0, 0);
+        __lasx_xvst(_row1, doutr1, 0);
+        __lasx_xvst(_row2, doutr2, 0);
+        __lasx_xvst(_row3, doutr3, 0);
+        __lasx_xvst(_row4, doutr4, 0);
+        __lasx_xvst(_row5, doutr5, 0);
+        __lasx_xvst(_row6, doutr6, 0);
+        __lasx_xvst(_row7, doutr7, 0);
         doutr0 += 8;
         doutr1 += 8;
         doutr2 += 8;
@@ -932,22 +909,22 @@ void unpackC8_common(const float* din,
       }
     } else {
       for (; j + 7 < size_out_channel; j += 8) {
-        __m256 _row0 = _mm256_loadu_ps(din);
-        __m256 _row1 = _mm256_loadu_ps(din + 8);
-        __m256 _row2 = _mm256_loadu_ps(din + 16);
-        __m256 _row3 = _mm256_loadu_ps(din + 24);
-        __m256 _row4 = _mm256_loadu_ps(din + 32);
-        __m256 _row5 = _mm256_loadu_ps(din + 40);
-        __m256 _row6 = _mm256_loadu_ps(din + 48);
-        __m256 _row7 = _mm256_loadu_ps(din + 56);
+        __m256 _row0 = (__m256)__lasx_xvld(din, 0);
+        __m256 _row1 = (__m256)__lasx_xvld(din + 8, 0);
+        __m256 _row2 = (__m256)__lasx_xvld(din + 16, 0);
+        __m256 _row3 = (__m256)__lasx_xvld(din + 24, 0);
+        __m256 _row4 = (__m256)__lasx_xvld(din + 32, 0);
+        __m256 _row5 = (__m256)__lasx_xvld(din + 40, 0);
+        __m256 _row6 = (__m256)__lasx_xvld(din + 48, 0);
+        __m256 _row7 = (__m256)__lasx_xvld(din + 56, 0);
         transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
-        _mm256_storeu_ps(doutr0, _row0);
-        if (channel - c > 1) _mm256_storeu_ps(doutr1, _row1);
-        if (channel - c > 2) _mm256_storeu_ps(doutr2, _row2);
-        if (channel - c > 3) _mm256_storeu_ps(doutr3, _row3);
-        if (channel - c > 4) _mm256_storeu_ps(doutr4, _row4);
-        if (channel - c > 5) _mm256_storeu_ps(doutr5, _row5);
-        if (channel - c > 6) _mm256_storeu_ps(doutr6, _row6);
+        __lasx_xvst(_row0, doutr0, 0);
+        if (channel - c > 1) __lasx_xvst(_row1, doutr1, 0);
+        if (channel - c > 2) __lasx_xvst(_row2, doutr2, 0);
+        if (channel - c > 3) __lasx_xvst(_row3, doutr3, 0);
+        if (channel - c > 4) __lasx_xvst(_row4, doutr4, 0);
+        if (channel - c > 5) __lasx_xvst(_row5, doutr5, 0);
+        if (channel - c > 6) __lasx_xvst(_row6, doutr6, 0);
         doutr0 += 8;
         doutr1 += 8;
         doutr2 += 8;
@@ -977,57 +954,59 @@ __m256 activation8_m256(__m256 input,
                         const lite_api::ActivationType act_type,
                         const operators::ActivationParam act_param) {
   if (act_type == lite_api::ActivationType::kRelu) {
-    return _mm256_max_ps(input, _mm256_setzero_ps());
+    return __lasx_xvfmax_s(input, __lasx_xvreplgr2vr_d(0));
   } else if (act_type == lite_api::ActivationType::kRelu6) {
-    __m256 _val = _mm256_max_ps(input, _mm256_setzero_ps());
-    return _mm256_min_ps(_val, _mm256_set1_ps(act_param.Relu_clipped_coef));
+    __m256 _val = __lasx_xvfmax_s(input, __lasx_xvreplgr2vr_d(0));
+    return __lasx_xvfmin_s(_val, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Relu_clipped_coef)));
   } else if (act_type == lite_api::ActivationType::kLeakyRelu) {
     __m256 _val_scale =
-        _mm256_mul_ps(input, _mm256_set1_ps(act_param.Leaky_relu_alpha));
-    return _mm256_blendv_ps(
+        __lasx_xvfmul_s(input, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Leaky_relu_alpha)));
+    return (__m256)lasx_m256i_blendv_ps(
         _val_scale,
         input,
-        _mm256_cmp_ps(input, _mm256_setzero_ps(), _CMP_GT_OS));
+        __lasx_xvfcmp_slt_s(__lasx_xvreplgr2vr_d(0), input);
   } else if (act_type == lite_api::ActivationType::kHardSwish) {
+    float act_param_scale = 1.0 / act_param.hard_swish_scale;
     __m256 _val_offset =
-        _mm256_add_ps(input, _mm256_set1_ps(act_param.hard_swish_offset));
+        __lasx_xvfadd_s(input, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_offset)));
     __m256 _val_scale =
-        _mm256_mul_ps(input, _mm256_set1_ps(1.0 / act_param.hard_swish_scale));
+        __lasx_xvfmul_s(input, (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param_scale)));
     __m256 _val =
-        _mm256_min_ps(_mm256_set1_ps(act_param.hard_swish_threshold),
-                      _mm256_max_ps(_val_offset, _mm256_setzero_ps()));
-    return _mm256_mul_ps(_val, _val_scale);
+        __lasx_xvfmin_s((__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_threshold)),
+                      __lasx_xvfmax_s(_val_offset, __lasx_xvreplgr2vr_d(0)));
+    return __lasx_xvfmul_s(_val, _val_scale);
   } else {
-    LOG(FATAL) << "[X86] activation type not supported";
+    LOG(FATAL) << "[LoongArch] activation type not supported";
   }
-  return _mm256_setzero_ps();
+  return __lasx_xvreplgr2vr_d(0);
 }
 
 __m128 activation4_m128(__m128 input,
                         const lite_api::ActivationType act_type,
                         const operators::ActivationParam act_param) {
   if (act_type == lite_api::ActivationType::kRelu) {
-    return _mm_max_ps(input, _mm_setzero_ps());
+    return __lsx_vfmax_s(input, __lsx_vreplgr2vr_w(0));
   } else if (act_type == lite_api::ActivationType::kRelu6) {
-    __m128 _val = _mm_max_ps(input, _mm_setzero_ps());
-    return _mm_min_ps(_val, _mm_set1_ps(act_param.Relu_clipped_coef));
+    __m128 _val = __lsx_vfmax_s(input, __lsx_vreplgr2vr_w(0));
+    return __lsx_vfmin_s(_val, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Relu_clipped_coef)));
   } else if (act_type == lite_api::ActivationType::kLeakyRelu) {
     __m128 _val_scale =
-        _mm_mul_ps(input, _mm_set1_ps(act_param.Leaky_relu_alpha));
-    return _mm_blendv_ps(
-        _val_scale, input, _mm_cmp_ps(input, _mm_setzero_ps(), _CMP_GT_OS));
+        __lsx_vfmul_s(input, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.Leaky_relu_alpha)));
+    return lsx_m128_blendv_ps(
+        _val_scale, input, __lsx_vfcmp_slt_s(__lsx_vreplgr2vr_w(0), input));
   } else if (act_type == lite_api::ActivationType::kHardSwish) {
+    float act_param_scale = 1.0 / act_param.hard_swish_scale;
     __m128 _val_offset =
-        _mm_add_ps(input, _mm_set1_ps(act_param.hard_swish_offset));
+        __lsx_vfadd_s(input, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_offset)));
     __m128 _val_scale =
-        _mm_mul_ps(input, _mm_set1_ps(1.0 / act_param.hard_swish_scale));
-    __m128 _val = _mm_min_ps(_mm_set1_ps(act_param.hard_swish_threshold),
-                             _mm_max_ps(_val_offset, _mm_setzero_ps()));
-    return _mm_mul_ps(_val, _val_scale);
+        __lsx_vfmul_s(input, (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param_scale)));
+    __m128 _val = __lsx_vfmin_s((__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&act_param.hard_swish_threshold)),
+                             __lsx_vfmax_s(_val_offset, __lsx_vreplgr2vr_w(0)));
+    return __lsx_vfmul_s(_val, _val_scale);
   } else {
-    LOG(FATAL) << "[X86] activation type not supported";
+    LOG(FATAL) << "[LoongArch] activation type not supported";
   }
-  return _mm_setzero_ps();
+  return __lsx_vreplgr2vr_w(0);
 }
 
 float activation1_float(float input,
@@ -1044,7 +1023,7 @@ float activation1_float(float input,
                        (std::max)(0.f, input + act_param.hard_swish_offset)) *
             input / act_param.hard_swish_scale);
   } else {
-    LOG(FATAL) << "[X86] activation type not supported";
+    LOG(FATAL) << "[LoongArch] activation type not supported";
   }
   return 0.f;
 }
@@ -1174,17 +1153,11 @@ void im2col_s1<float>(const float* data_im,
           unsigned int data_col_offset = data_col_z + oh * output_w;
           const float* data_im_ptr = data_im + data_im_offset;
           float* data_col_ptr = data_col + data_col_offset;
-#ifdef __AVX__
           for (; ow + 7 < ow_end; ow += 8, iw += 8) {
-            __m256 vtmp = _mm256_loadu_ps(data_im_ptr + iw);
-            _mm256_storeu_ps(data_col_ptr + ow, vtmp);
+            __m256 vtmp = (__m256)__lasx_xvld(data_im_ptr + iw, 0);
+            __lasx_xvst(vtmp, data_col_ptr + ow, 0);
           }
-#else
-          for (; ow + 3 < ow_end; ow += 4, iw += 4) {
-            __m128 vtmp = _mm_loadu_ps(data_im_ptr + iw);
-            _mm_storeu_ps(data_col_ptr + ow, vtmp);
-          }
-#endif
+
           for (; ow < ow_end; ++ow, ++iw) {
             data_col[data_col_offset + ow] = data_im[data_im_offset + iw];
           }
@@ -1250,12 +1223,11 @@ void im2col_s2<float>(const float* data_im,
           float* data_col_ptr = data_col + data_col_offset;
           for (; ow + 3 < ow_end; ow += 4, iw += 8) {
             // a0a1a2a3
-            __m128 vtmp0 = _mm_loadu_ps(data_im_ptr + iw);
+            __m128 vtmp0 = (__m128)__lsx_vld(data_im_ptr + iw, 0);
             // a4a5a6a7
-            __m128 vtmp1 = _mm_loadu_ps(data_im_ptr + iw + 4);
+            __m128 vtmp1 = (__m128)__lsx_vld(data_im_ptr + iw + 4, 0);
             // a0a2a4a6
-            _mm_storeu_ps(data_col_ptr + ow,
-                          _mm_shuffle_ps(vtmp0, vtmp1, 0x88));
+            __lsx_vst(lsx_m128i_shuffle_ps(vtmp0, vtmp1, lsx_mm_shuffle(0x88)), data_col_ptr + ow, 0);
           }
           for (; ow < ow_end; ++ow, iw += 2) {
             data_col[data_col_offset + ow] = data_im[data_im_offset + iw];
@@ -1398,6 +1370,6 @@ void im2col<int8_t>(const int8_t* data_im,
 }
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

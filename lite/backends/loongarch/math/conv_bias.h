@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #pragma once
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 #include <vector>
 #include "lite/core/tensor.h"
 

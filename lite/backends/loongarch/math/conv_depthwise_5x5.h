@@ -12,50 +12,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 #pragma once
-
-#ifdef __AVX__
-#include <immintrin.h>
-#else
-#include <emmintrin.h>
-#include <smmintrin.h>
-#endif
+#include "lite/backends/loongarch/math/instruction_utils.h"
+#include <lsxintrin.h>
+#include <lasxintrin.h>
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
-#ifdef __AVX__
-#define loadu_ps(a) _mm256_loadu_ps(a)
-#define fmadd_ps(a, b, c) _mm256_fmadd_ps(a, b, c)
-#define storeu_ps(a, b) _mm256_storeu_ps(a, b)
-#define setzero_ps() _mm256_setzero_ps()
-#define max_ps(a, b) _mm256_max_ps(a, b)
-#define min_ps(a, b) _mm256_min_ps(a, b)
-#define set1_ps(a) _mm256_set1_ps(a)
-#define mul_ps(a, b) _mm256_mul_ps(a, b)
-#define cmp_ps(a, b, c) _mm256_cmp_ps(a, b, c)
-#define blendv_ps(a, b, c) _mm256_blendv_ps(a, b, c)
-#define add_ps(a, b) _mm256_add_ps(a, b)
+#define loadu_ps(a) (__m256)__lasx_xvld(a, 0)
+#define fmadd_ps(a, b, c) __lasx_xvfmadd_s(a, b, c)
+#define storeu_ps(a, b) __lasx_xvst(b, a, 0)
+#define setzero_ps() (__m256)__lasx_xvreplgr2vr_w(0)
+#define max_ps(a, b) __lasx_xvfmax_s(a, b)
+#define min_ps(a, b) __lasx_xvfmin_s(a, b)
+#define set1_ps(a) (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&a))
+#define mul_ps(a, b) __lasx_xvfmul_s(a, b)
+#define cmp_ps(a, b, c) lasx_m256_cmp_ps(a, b, c)
+#define blendv_ps(a, b, c) (__m256)lasx_m256i_blendv_ps(a, b, c)
+#define add_ps(a, b) __lasx_xvfadd_s(a, b)
 #define block_channel 8
 #define Type __m256
-#else
-#define loadu_ps(a) _mm_loadu_ps(a)
-#define storeu_ps(a, b) _mm_storeu_ps(a, b)
-#define fmadd_ps(a, b, c) _mm_add_ps(_mm_mul_ps(a, b), c)
-#define setzero_ps() _mm_setzero_ps()
-#define max_ps(a, b) _mm_max_ps(a, b)
-#define min_ps(a, b) _mm_min_ps(a, b)
-#define set1_ps(a) _mm_set1_ps(a)
-#define mul_ps(a, b) _mm_mul_ps(a, b)
-#define cmp_ps(a, b, c) _mm_cmp_ps(a, b, c)
-#define blendv_ps(a, b, c) _mm_blendv_ps(a, b, c)
-#define add_ps(a, b) _mm_add_ps(a, b)
-#define block_channel 4
-#define Type __m128
-#endif
+
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

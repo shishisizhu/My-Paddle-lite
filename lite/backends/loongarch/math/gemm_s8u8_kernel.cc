@@ -12,9 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#ifdef __AVX2__
 
-#include "lite/backends/x86/math/gemm_s8u8_kernel.h"
+#include "lite/backends/loongarch/math/gemm_s8u8_kernel.h"
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <smmintrin.h>
@@ -24,7 +23,7 @@ limitations under the License. */
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 //********************** activte and bias function **************************
@@ -35,19 +34,19 @@ void gemm_fuse_relu_bias(__m256* vec_data,
                          int act_mode) {
   const int cmp_le_os = 2;
   __m256 vec_lr, vec_mask;
-  *vec_data = _mm256_add_ps(*vec_data, vec_bias);
+  *vec_data = __lasx_xvfadd_s(*vec_data, vec_bias);
   switch (act_mode) {
     case 1:
-      *vec_data = _mm256_max_ps(*vec_data, vec_zero);  // relu
+      *vec_data = __lasx_xvfmax_s(*vec_data, vec_zero);  // relu
       break;
     case 2:
       *vec_data =
-          _mm256_min_ps(_mm256_max_ps(*vec_data, vec_zero), vec_alph);  // relu6
+          __lasx_xvfmin_s(__lasx_xvfmax_s(*vec_data, vec_zero), vec_alph);  // relu6
       break;
     case 3:
-      vec_lr = _mm256_mul_ps(vec_alph, *vec_data);  // lrelu
-      vec_mask = _mm256_cmp_ps(*vec_data, vec_zero, cmp_le_os);
-      *vec_data = _mm256_blendv_ps(*vec_data, vec_lr, vec_mask);
+      vec_lr = __lasx_xvfmul_s(vec_alph, *vec_data);  // lrelu
+      vec_mask = __lasx_xvfcmp_sle_s(*vec_data, vec_zero);
+      *vec_data = (__m256)lasx_m256i_blendv_ps(*vec_data, vec_lr, vec_mask);
       break;
     default:
       break;
@@ -60,18 +59,18 @@ void gemm_fuse_relu_bias_128(__m128* vec_data,
                              __m128 vec_zero,
                              int act_mode) {
   __m128 vec_lr_128, vec_mask_128;
-  *vec_data = _mm_add_ps(*vec_data, vec_bias);
+  *vec_data = __lsx_vfadd_s(*vec_data, vec_bias);
   switch (act_mode) {
     case 1:
-      *vec_data = _mm_max_ps(*vec_data, vec_zero);
+      *vec_data = __lsx_vfmax_s(*vec_data, vec_zero);
       break;
     case 2:
-      *vec_data = _mm_min_ps(_mm_max_ps(*vec_data, vec_zero), vec_alph);
+      *vec_data = __lsx_vfmin_s(__lsx_vfmax_s(*vec_data, vec_zero), vec_alph);
       break;
     case 3:
-      vec_lr_128 = _mm_mul_ps(*vec_data, vec_alph);
-      vec_mask_128 = _mm_cmple_ps(*vec_data, vec_zero);
-      *vec_data = _mm_blendv_ps(*vec_data, vec_lr_128, vec_mask_128);
+      vec_lr_128 = __lsx_vfmul_s(*vec_data, vec_alph);
+      vec_mask_128 = __lsx_vfcmp_sle_s(*vec_data, vec_zero);
+      *vec_data = lsx_m128_blendv_ps(*vec_data, vec_lr_128, vec_mask_128);
       break;
     default:
       break;
@@ -120,46 +119,46 @@ void gemm_fuse_relu_bias_f32(float* data,
 
 // extra 2 regs
 #define _MM256_DOT_U8S8(dst, src1, src2, vec_tmp_marco)          \
-  vec_tmp_marco = _mm256_maddubs_epi16(src1, src2);              \
-  vec_tmp_marco = _mm256_madd_epi16(vec_tmp_marco, vec_one_s16); \
-  dst = _mm256_add_epi32(dst, vec_tmp_marco);
+  vec_tmp_marco = lasx_maddubs_epi16(src1, src2);              \
+  vec_tmp_marco = __lasx_xvmadd_h(vec_tmp_marco, vec_one_s16); \
+  dst = __lasx_xvadd_w(dst, vec_tmp_marco);
 
 #define _MM_DOT_U8S8(dst, src1, src2, vec_tmp_marco)          \
-  vec_tmp_marco = _mm_maddubs_epi16(src1, src2);              \
-  vec_tmp_marco = _mm_madd_epi16(vec_tmp_marco, vec_one_128); \
-  dst = _mm_add_epi32(dst, vec_tmp_marco);
+  vec_tmp_marco = lsx_maddubs_epi16(src1, src2);              \
+  vec_tmp_marco = __lsx_xvmadd_h(vec_tmp_marco, vec_one_128); \
+  dst = __lsx_vadd_w(dst, vec_tmp_marco);
 
 // 32 int to 32 int8
 #define INT32x32_2_INT8x32(out, in1, in2, in3, in4)                 \
   {                                                                 \
-    in1 = _mm256_packs_epi32(in1, in2);                             \
-    in3 = _mm256_packs_epi32(in3, in4);                             \
-    in4 = _mm256_packs_epi16(in1, in3);                             \
-    __m128i hi_in = _mm256_extractf128_si256(in4, 1);               \
+    in1 = lasx_packs_epi32(in1, in2);                             \
+    in3 = lasx_packs_epi32(in3, in4);                             \
+    in4 = lasx_packs_epi16(in1, in3);                             \
+    __m128i hi_in =  lasx_extracti128_hi(in4);               \
     __m128i vec_i32_2_i8_tmp =                                      \
-        _mm_unpacklo_epi32(_mm256_castsi256_si128(in4), hi_in);     \
-    hi_in = _mm_unpackhi_epi32(_mm256_castsi256_si128(in4), hi_in); \
-    out = _mm256_inserti128_si256(out, vec_i32_2_i8_tmp, 0);        \
-    out = _mm256_inserti128_si256(out, hi_in, 1);                   \
-    out = _mm256_max_epi8(out, vec_mins_127);                       \
+        __lsx_vilvl_w(lasx_extracti128_lo(in4), hi_in);     \
+    hi_in = __lsx_vilvh_w(lasx_extracti128_lo(in4), hi_in); \
+    out = lasx_inserti128_si256(out, vec_i32_2_i8_tmp, 0);        \
+    out = lasx_inserti128_si256(out, hi_in, 1);                   \
+    out = __lasx_xvmax_b(out, vec_mins_127);                       \
   }
 
 // BroadCast K4 8-bit data to 8 lanes
 #define SET_A(i, offt) \
-  vec_A##i = _mm256_set1_epi32(*reinterpret_cast<int*>(a_ptr + offt));
+  vec_A##i = __lasx_xvreplgr2vr_w(*reinterpret_cast<int*>(a_ptr + offt));
 
 // BroadCast K4 8-bit data to 4 lanes
 #define SET_A_128(i, offt) \
-  vec_A##i##_128 = _mm_set1_epi32(*reinterpret_cast<int*>(a_ptr + offt));
+  vec_A##i##_128 = __lsx_vreplgr2vr_w(*reinterpret_cast<int*>(a_ptr + offt));
 
 // Load K4xN8 8-bit data, total 256 bits
 #define LOAD_B(i, offt) \
-  vec_B##i = _mm256_loadu_si256(reinterpret_cast<__m256i const*>(b_ptr + offt));
+  vec_B##i = __lasx_xvld(b_ptr + offt, 0);
 
 // Load K4xN4 8-bit data, total 128 bits
 #define LOAD_B_128(i, offt) \
   vec_B##i##_128 =          \
-      _mm_loadu_si128(reinterpret_cast<__m128i const*>(b_ptr + offt));
+      __lsx_vld(b_ptr + offt, 0);
 
 #define SUDOT(c, b, a) _MM256_DOT_U8S8(vec_C##c, vec_B##b, vec_A##a, vec_tmp)
 
@@ -167,18 +166,18 @@ void gemm_fuse_relu_bias_f32(float* data,
   _MM_DOT_U8S8(vec_C##c##_128, vec_B##b##_128, vec_A##a##_128, vec_tmp_128)
 
 #define INIT_C                     \
-  vec_C0 = _mm256_setzero_si256(); \
-  vec_C1 = _mm256_setzero_si256(); \
-  vec_C2 = _mm256_setzero_si256(); \
-  vec_C3 = _mm256_setzero_si256(); \
-  vec_C4 = _mm256_setzero_si256(); \
-  vec_C5 = _mm256_setzero_si256(); \
-  vec_C6 = _mm256_setzero_si256(); \
-  vec_C7 = _mm256_setzero_si256();
+  vec_C0 = __lasx_xvreplgr2vr_d(0); \
+  vec_C1 = __lasx_xvreplgr2vr_d(0); \
+  vec_C2 = __lasx_xvreplgr2vr_d(0); \
+  vec_C3 = __lasx_xvreplgr2vr_d(0); \
+  vec_C4 = __lasx_xvreplgr2vr_d(0); \
+  vec_C5 = __lasx_xvreplgr2vr_d(0); \
+  vec_C6 = __lasx_xvreplgr2vr_d(0); \
+  vec_C7 = __lasx_xvreplgr2vr_d(0);
 
 #define INIT_C_128                  \
-  vec_C0_128 = _mm_setzero_si128(); \
-  vec_C1_128 = _mm_setzero_si128();
+  vec_C0_128 = __lsx_vreplgr2vr_w(0); \
+  vec_C1_128 = __lsx_vreplgr2vr_w(0);
 
 #define KERN_2x32                                                             \
   SET_A(0, 0)                                                                 \
@@ -262,73 +261,70 @@ void gemm_fuse_relu_bias_f32(float* data,
 #define KERN_2x2                                                         \
   SET_A_128(0, 0)                                                        \
   SET_A_128(1, 4)                                                        \
-  vec_B0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i const*>(b_ptr)); \
+  vec_B0_128 = lsx_loadl_epi64(b_ptr); \
   SUDOT_128(0, 0, 0) SUDOT_128(1, 0, 1) a_ptr += 2 * 4;                  \
   b_ptr += 2 * 4;
 
 #define KERN_1x2                                                         \
   SET_A_128(0, 0)                                                        \
-  vec_B0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i const*>(b_ptr)); \
+  vec_B0_128 = lsx_loadl_epi64(b_ptr); \
   SUDOT_128(0, 0, 0)                                                     \
   a_ptr += 4;                                                            \
   b_ptr += 2 * 4;
 
 #define STORE_32(in0, in1, in2, in3, i)                                \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]);  \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]);  \
-  dst_vec_ps2 = _mm256_mul_ps(_mm256_cvtepi32_ps(in2), vec_scale[i]);  \
-  dst_vec_ps3 = _mm256_mul_ps(_mm256_cvtepi32_ps(in3), vec_scale[i]);  \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]);  \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]);  \
+  dst_vec_ps2 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in2), vec_scale[i]);  \
+  dst_vec_ps3 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in3), vec_scale[i]);  \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                   \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                   \
   ACT_RELU_BIAS(dst_vec_ps2, vec_bias[i], relu_type)                   \
   ACT_RELU_BIAS(dst_vec_ps3, vec_bias[i], relu_type)                   \
-  in0 = _mm256_cvtps_epi32(dst_vec_ps0);                               \
-  in1 = _mm256_cvtps_epi32(dst_vec_ps1);                               \
-  in2 = _mm256_cvtps_epi32(dst_vec_ps2);                               \
-  in3 = _mm256_cvtps_epi32(dst_vec_ps3);                               \
-  INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) _mm256_storeu_si256( \
-      reinterpret_cast<__m256i*>(c_ptr + i * ldc), dst_vec);
+  in0 = __lasx_xvftintrne_w_s(dst_vec_ps0);                               \
+  in1 = __lasx_xvftintrne_w_s(dst_vec_ps1);                               \
+  in2 = __lasx_xvftintrne_w_s(dst_vec_ps2);                               \
+  in3 = __lasx_xvftintrne_w_s(dst_vec_ps3);                               \
+  INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) __lasx_xvst(dst_vec, c_ptr + i * ldc, 0);
 
 #define STORE_24(in0, in1, in2, in3, i)                                   \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]);     \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]);     \
-  dst_vec_ps2 = _mm256_mul_ps(_mm256_cvtepi32_ps(in2), vec_scale[i]);     \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]);     \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]);     \
+  dst_vec_ps2 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in2), vec_scale[i]);     \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                      \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                      \
   ACT_RELU_BIAS(dst_vec_ps2, vec_bias[i], relu_type)                      \
-  in0 = _mm256_cvtps_epi32(dst_vec_ps0);                                  \
-  in1 = _mm256_cvtps_epi32(dst_vec_ps1);                                  \
-  in2 = _mm256_cvtps_epi32(dst_vec_ps2);                                  \
-  INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) _mm256_maskstore_epi32( \
-      reinterpret_cast<int*>(c_ptr + i * ldc), vec_mask, dst_vec);
+  in0 = __lasx_xvftintrne_w_s(dst_vec_ps0);                                  \
+  in1 = __lasx_xvftintrne_w_s(dst_vec_ps1);                                  \
+  in2 = __lasx_xvftintrne_w_s(dst_vec_ps2);                                  \
+  INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) lasx_maskstore_epi32(c_ptr + i * ldc, vec_mask, dst_vec);
 
 #define STORE_16(in0, in1, in2, in3, i)                               \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                  \
-  in0 = _mm256_cvtps_epi32(dst_vec_ps0);                              \
-  in1 = _mm256_cvtps_epi32(dst_vec_ps1);                              \
+  in0 = __lasx_xvftintrne_w_s(dst_vec_ps0);                              \
+  in1 = __lasx_xvftintrne_w_s(dst_vec_ps1);                              \
   INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) dst_vec_128 =       \
-      _mm256_castsi256_si128(dst_vec);                                \
-  _mm_storeu_si128(reinterpret_cast<__m128i*>(c_ptr + i * ldc), dst_vec_128);
+      lasx_extracti128_lo(dst_vec);                                \
+  __lsx_vst(dst_vec_128, c_ptr + i * ldc, 0);
 
 #define STORE_8(in0, in1, in2, in3, i)                                \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
-  in0 = _mm256_cvtps_epi32(dst_vec_ps0);                              \
+  in0 = __lasx_xvftintrne_w_s(dst_vec_ps0);                              \
   INT32x32_2_INT8x32(dst_vec, in0, in1, in2, in3) dst_vec_128 =       \
-      _mm256_castsi256_si128(dst_vec);                                \
-  _mm_storel_pi(reinterpret_cast<__m64*>(c_ptr + i * ldc),            \
-                _mm_castsi128_ps(dst_vec_128));
+      lasx_extracti128_lo(dst_vec);                                \
+  __lsx_vstelem_d(dst_vec_128, c_ptr + i * ldc, 0, 0);
 
 // __m128
 #define STORE_4(in0, i)                                                   \
   {                                                                       \
-    dst_vec_ps0_128 = _mm_mul_ps(_mm_cvtepi32_ps(in0), vec_scale_128[i]); \
+    dst_vec_ps0_128 = __lsx_vfmul_s(lsx_vffint_s_w(in0), vec_scale_128[i]); \
     ACT_RELU_BIAS_128(dst_vec_ps0_128, vec_bias_128[i], relu_type)        \
-    in0 = _mm_cvtps_epi32(dst_vec_ps0_128);                               \
-    in0 = _mm_min_epi32(_mm_max_epi32(in0, vec_left), vec_right);         \
+    in0 = __lsx_vftint_w_s(dst_vec_ps0_128);                               \
+    in0 = __lsx_vmin_w(__lsx_vmax_w(in0, vec_left), vec_right);         \
     int* ptr = reinterpret_cast<int*>(&in0);                              \
     *(c_ptr + i * ldc) = static_cast<int8_t>(ptr[0]);                     \
     *(c_ptr + i * ldc + 1) = static_cast<int8_t>(ptr[1]);                 \
@@ -375,39 +371,39 @@ void gemm_kernel_loop_int8(int M,
   __m256i vec_C4, vec_C5, vec_C6, vec_C7;
   __m256i vec_B0, vec_B1, vec_B2, vec_B3;
   __m256i vec_A0, vec_A1, vec_tmp;
-  __m256i vec_one_s16 = _mm256_set1_epi16(static_cast<int16_t>(1));
+  __m256i vec_one_s16 = __lasx_xvreplgr2vr_h(static_cast<int16_t>(1));
   // save result
   __m256i dst_vec;
   __m256 vec_bias[2];
   __m256 vec_scale[2];
   __m256 dst_vec_ps0, dst_vec_ps1, dst_vec_ps2, dst_vec_ps3;
   // bias and relu
-  __m256 vec_alph = _mm256_set1_ps(relu_alpha);
-  __m256 vec_zero = _mm256_set1_ps(0.f);
+  __m256 vec_alph = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
+  __m256 vec_zero = __lasx_xvreplgr2vr_w(0);
   // val is in -127, 127, the other side using packs to guarantee
-  __m256i vec_mins_127 = _mm256_set1_epi8(static_cast<char>(CLIP_BORDER_LEFT));
+  __m256i vec_mins_127 = __lasx_xvreplgr2vr_b(static_cast<char>(CLIP_BORDER_LEFT));
 
   // SSE
   __m128i vec_C0_128, vec_C1_128;
   __m128i vec_B0_128;
   __m128i vec_A0_128, vec_A1_128, vec_tmp_128;
-  __m128i vec_one_128 = _mm_set1_epi16(static_cast<int16_t>(1));
+  __m128i vec_one_128 = __lsx_vreplgr2vr_h(static_cast<int16_t>(1));
   // save result
   __m128i dst_vec_128;
   __m128 vec_bias_128[2];
   __m128 vec_scale_128[2];
   __m128 dst_vec_ps0_128;
   // bias and relu
-  __m128 vec_alph_128 = _mm_set1_ps(relu_alpha);
-  __m128 vec_zero_128 = _mm_set1_ps(0.f);
+  __m128 vec_alph_128 = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
+  __m128 vec_zero_128 = (__m128)__lsx_vreplgr2vr_w(0);
   // clip
-  __m128i vec_left = _mm_set1_epi32(static_cast<int>(CLIP_BORDER_LEFT));
-  __m128i vec_right = _mm_set1_epi32(static_cast<int>(CLIP_BORDER_RIGHT));
+  __m128i vec_left = __lsx_vreplgr2vr_w(static_cast<int>(CLIP_BORDER_LEFT));
+  __m128i vec_right = __lsx_vreplgr2vr_w(static_cast<int>(CLIP_BORDER_RIGHT));
 
   // mask load, store
   int mask0[8] = {-1, -1, -1, -1, -1, -1, 0, 0};  // load or save 24 int8-data
   __m256i vec_mask =
-      _mm256_loadu_si256(reinterpret_cast<__m256i const*>(mask0));
+      __lasx_xvld(mask0, 0);
 
   // block A
   for (idx_m = 0; idx_m + 1 < M; idx_m += 2) {
@@ -417,14 +413,14 @@ void gemm_kernel_loop_int8(int M,
     C += 2 * ldc;
 
     // bias and scale
-    vec_bias[0] = _mm256_set1_ps(*(bias_ptr + idx_m));
-    vec_bias[1] = _mm256_set1_ps(*(bias_ptr + idx_m + 1));
-    vec_scale[0] = _mm256_set1_ps(*(scale_ptr + idx_m));
-    vec_scale[1] = _mm256_set1_ps(*(scale_ptr + idx_m + 1));
-    vec_bias_128[0] = _mm_set1_ps(*(bias_ptr + idx_m));
-    vec_bias_128[1] = _mm_set1_ps(*(bias_ptr + idx_m + 1));
-    vec_scale_128[0] = _mm_set1_ps(*(scale_ptr + idx_m));
-    vec_scale_128[1] = _mm_set1_ps(*(scale_ptr + idx_m + 1));
+    vec_bias[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_bias[1] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m + 1));
+    vec_scale[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_scale[1] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m + 1));
+    vec_bias_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_bias_128[1] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m + 1));
+    vec_scale_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_scale_128[1] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m + 1));
 
     // block B
     for (idx_n = 0; idx_n + 31 < N; idx_n += 32) {
@@ -524,10 +520,10 @@ void gemm_kernel_loop_int8(int M,
     C += ldc;
 
     // bias and scale
-    vec_bias[0] = _mm256_set1_ps(*(bias_ptr + idx_m));
-    vec_scale[0] = _mm256_set1_ps(*(scale_ptr + idx_m));
-    vec_bias_128[0] = _mm_set1_ps(*(bias_ptr + idx_m));
-    vec_scale_128[0] = _mm_set1_ps(*(scale_ptr + idx_m));
+    vec_bias[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_scale[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_bias_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_scale_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
 
     // block B
     for (idx_n = 0; idx_n + 31 < N; idx_n += 32) {
@@ -608,49 +604,49 @@ void gemm_kernel_loop_int8(int M,
 }
 
 #define STORE_32_float(in0, in1, in2, in3, i)                         \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]); \
-  dst_vec_ps2 = _mm256_mul_ps(_mm256_cvtepi32_ps(in2), vec_scale[i]); \
-  dst_vec_ps3 = _mm256_mul_ps(_mm256_cvtepi32_ps(in3), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]); \
+  dst_vec_ps2 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in2), vec_scale[i]); \
+  dst_vec_ps3 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in3), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps2, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps3, vec_bias[i], relu_type)                  \
-  _mm256_storeu_ps(c_ptr + i * ldc, dst_vec_ps0);                     \
-  _mm256_storeu_ps(c_ptr + i * ldc + 8, dst_vec_ps1);                 \
-  _mm256_storeu_ps(c_ptr + i * ldc + 16, dst_vec_ps2);                \
-  _mm256_storeu_ps(c_ptr + i * ldc + 24, dst_vec_ps3);
+  __lasx_xvst(dst_vec_ps0, c_ptr + i * ldc, 0);                     \
+  __lasx_xvst(dst_vec_ps1, c_ptr + i * ldc + 8, 0);                 \
+  __lasx_xvst(dst_vec_ps2, c_ptr + i * ldc + 16, 0);                \
+  __lasx_xvst(dst_vec_ps3, c_ptr + i * ldc + 24, 0);
 
 #define STORE_24_float(in0, in1, in2, in3, i)                         \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]); \
-  dst_vec_ps2 = _mm256_mul_ps(_mm256_cvtepi32_ps(in2), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]); \
+  dst_vec_ps2 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in2), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps2, vec_bias[i], relu_type)                  \
-  _mm256_storeu_ps(c_ptr + i * ldc, dst_vec_ps0);                     \
-  _mm256_storeu_ps(c_ptr + i * ldc + 8, dst_vec_ps1);                 \
-  _mm256_storeu_ps(c_ptr + i * ldc + 16, dst_vec_ps2);
+  __lasx_xvst(dst_vec_ps0, c_ptr + i * ldc, 0);                     \
+  __lasx_xvst(dst_vec_ps1, c_ptr + i * ldc + 8, 0);                 \
+  __lasx_xvst(dst_vec_ps2, c_ptr + i * ldc + 16, 0);
 
 #define STORE_16_float(in0, in1, in2, in3, i)                         \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
-  dst_vec_ps1 = _mm256_mul_ps(_mm256_cvtepi32_ps(in1), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
+  dst_vec_ps1 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in1), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
   ACT_RELU_BIAS(dst_vec_ps1, vec_bias[i], relu_type)                  \
-  _mm256_storeu_ps(c_ptr + i * ldc, dst_vec_ps0);                     \
-  _mm256_storeu_ps(c_ptr + i * ldc + 8, dst_vec_ps1);
+  __lasx_xvst(dst_vec_ps0, c_ptr + i * ldc, 0);                     \
+  __lasx_xvst(dst_vec_ps1, c_ptr + i * ldc + 8, 0);
 
 #define STORE_8_float(in0, in1, in2, in3, i)                          \
-  dst_vec_ps0 = _mm256_mul_ps(_mm256_cvtepi32_ps(in0), vec_scale[i]); \
+  dst_vec_ps0 = __lasx_xvfmul_s(__lasx_xvffint_s_w(in0), vec_scale[i]); \
   ACT_RELU_BIAS(dst_vec_ps0, vec_bias[i], relu_type)                  \
-  _mm256_storeu_ps(c_ptr + i * ldc, dst_vec_ps0);
+  __lasx_xvst(dst_vec_ps0, c_ptr + i * ldc, 0);
 
 // __m128
 #define STORE_4_float(in0, i)                                             \
   {                                                                       \
-    dst_vec_ps0_128 = _mm_mul_ps(_mm_cvtepi32_ps(in0), vec_scale_128[i]); \
+    dst_vec_ps0_128 = __lsx_vfmul_s(lsx_vffint_s_w(in0), vec_scale_128[i]); \
     ACT_RELU_BIAS_128(dst_vec_ps0_128, vec_bias_128[i], relu_type)        \
-    _mm_storeu_ps(c_ptr + i * ldc, dst_vec_ps0_128);                      \
+    __lsx_vst(dst_vec_ps0_128, c_ptr + i * ldc, 0);                      \
   }
 
 #define STORE_2_float(in0, i)                                \
@@ -690,27 +686,27 @@ void gemm_kernel_loop_int8(int M,
   __m256i vec_C4, vec_C5, vec_C6, vec_C7;
   __m256i vec_B0, vec_B1, vec_B2, vec_B3;
   __m256i vec_A0, vec_A1, vec_tmp;
-  __m256i vec_one_s16 = _mm256_set1_epi16(static_cast<int16_t>(1));
+  __m256i vec_one_s16 = __lasx_xvreplgr2vr_h(static_cast<int16_t>(1));
   // save result
   __m256 vec_bias[2];
   __m256 vec_scale[2];
   __m256 dst_vec_ps0, dst_vec_ps1, dst_vec_ps2, dst_vec_ps3;
   // bias and relu
-  __m256 vec_alph = _mm256_set1_ps(relu_alpha);
-  __m256 vec_zero = _mm256_set1_ps(0.f);
+  __m256 vec_alph = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
+  __m256 vec_zero = __lasx_xvreplgr2vr_w(0);
 
   // SSE
   __m128i vec_C0_128, vec_C1_128;
   __m128i vec_B0_128;
   __m128i vec_A0_128, vec_A1_128, vec_tmp_128;
-  __m128i vec_one_128 = _mm_set1_epi16(static_cast<int16_t>(1));
+  __m128i vec_one_128 = __lsx_vreplgr2vr_h(static_cast<int16_t>(1));
   // save result
   __m128 vec_bias_128[2];
   __m128 vec_scale_128[2];
   __m128 dst_vec_ps0_128;
   // bias and relu
-  __m128 vec_alph_128 = _mm_set1_ps(relu_alpha);
-  __m128 vec_zero_128 = _mm_set1_ps(0.f);
+  __m128 vec_alph_128 = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(&relu_alpha));
+  __m128 vec_zero_128 = (__m128)__lsx_vreplgr2vr_w(0);
 
   // block A
   for (idx_m = 0; idx_m + 1 < M; idx_m += 2) {
@@ -720,14 +716,14 @@ void gemm_kernel_loop_int8(int M,
     C += 2 * ldc;
 
     // bias and scale
-    vec_bias[0] = _mm256_set1_ps(*(bias_ptr + idx_m));
-    vec_bias[1] = _mm256_set1_ps(*(bias_ptr + idx_m + 1));
-    vec_scale[0] = _mm256_set1_ps(*(scale_ptr + idx_m));
-    vec_scale[1] = _mm256_set1_ps(*(scale_ptr + idx_m + 1));
-    vec_bias_128[0] = _mm_set1_ps(*(bias_ptr + idx_m));
-    vec_bias_128[1] = _mm_set1_ps(*(bias_ptr + idx_m + 1));
-    vec_scale_128[0] = _mm_set1_ps(*(scale_ptr + idx_m));
-    vec_scale_128[1] = _mm_set1_ps(*(scale_ptr + idx_m + 1));
+    vec_bias[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_bias[1] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m + 1));
+    vec_scale[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_scale[1] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m + 1));
+    vec_bias_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_bias_128[1] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m + 1));
+    vec_scale_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_scale_128[1] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m + 1));
 
     // block B
     for (idx_n = 0; idx_n + 31 < N; idx_n += 32) {
@@ -815,10 +811,10 @@ void gemm_kernel_loop_int8(int M,
     C += ldc;
 
     // bias and scale
-    vec_bias[0] = _mm256_set1_ps(*(bias_ptr + idx_m));
-    vec_scale[0] = _mm256_set1_ps(*(scale_ptr + idx_m));
-    vec_bias_128[0] = _mm_set1_ps(*(bias_ptr + idx_m));
-    vec_scale_128[0] = _mm_set1_ps(*(scale_ptr + idx_m));
+    vec_bias[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_scale[0] = (__m256)__lasx_xvreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
+    vec_bias_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(bias_ptr + idx_m));
+    vec_scale_128[0] = (__m128)__lsx_vreplgr2vr_w(*reinterpret_cast<const int*>(scale_ptr + idx_m));
 
     // block B
     for (idx_n = 0; idx_n + 31 < N; idx_n += 32) {
@@ -934,8 +930,7 @@ void gemm_kernel_loop_int8(int M,
 #undef STORE_2_float
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle
 
-#endif  // __AVX2__

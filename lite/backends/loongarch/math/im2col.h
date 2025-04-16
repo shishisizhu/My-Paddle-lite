@@ -13,14 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 #include <vector>
 #include "lite/core/context.h"
 #include "lite/core/tensor.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 /* The storage format of the coldata in the Im2ColFunctor and Col2ImFunctor. */
@@ -103,6 +103,6 @@ class Col2ImFunctor {
 };
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle

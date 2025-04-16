@@ -17,13 +17,14 @@ limitations under the License. */
 #include <string.h>
 #include <algorithm>
 #include <cmath>
-#include "lite/backends/x86/math/gemm_s8u8_kernel.h"
-#include "lite/backends/x86/math/gemm_s8u8_pack.h"
+#include "lite/backends/loongarch/math/gemm_s8u8_kernel.h"
+#include "lite/backends/loongarch/math/gemm_s8u8_pack.h"
 #include "lite/core/memory.h"
+#include "lite/backends/loongarch/math/instruction_utils.h"
 
 namespace paddle {
 namespace lite {
-namespace x86 {
+namespace loongarch {
 namespace math {
 
 #define PARAM_INIT               \
@@ -41,9 +42,9 @@ namespace math {
   _relu_alpha = relu_alpha;
 
 template <typename TYPE_C>
-class generate_gemm_s8u8_x86_kern {
+class generate_gemm_s8u8_loongarch_kern {
  public:
-  explicit generate_gemm_s8u8_x86_kern(bool is_trans_A,
+  explicit generate_gemm_s8u8_loongarch_kern(bool is_trans_A,
                                        bool is_trans_B,
                                        int M,
                                        int N,
@@ -60,7 +61,7 @@ class generate_gemm_s8u8_x86_kern {
     gemm_int8_init(M, N, K, bias);
   }
 
-  ~generate_gemm_s8u8_x86_kern() { gemm_int8_deinit(); }
+  ~generate_gemm_s8u8_loongarch_kern() { gemm_int8_deinit(); }
 
   void compute(const int8_t *A, const int8_t *B, TYPE_C *C) {
     if (_relu_type < 0 || _relu_type > 3) {
@@ -170,17 +171,17 @@ class generate_gemm_s8u8_x86_kern {
     calc_block(M, N, K, &block_m, &block_n);
     // malloc work_buf
     _pack_A = reinterpret_cast<int8_t *>(
-        TargetMalloc(TARGET(kX86), block_m * K_align4));
+        TargetMalloc(TARGET(kLoongArch), block_m * K_align4));
     _pack_B = reinterpret_cast<uint8_t *>(
-        TargetMalloc(TARGET(kX86), block_n * K_align4));
+        TargetMalloc(TARGET(kLoongArch), block_n * K_align4));
     _re_bias = reinterpret_cast<float *>(
-        TargetMalloc(TARGET(kX86), M * sizeof(float)));
+        TargetMalloc(TARGET(kLoongArch), M * sizeof(float)));
     _scale = reinterpret_cast<float *>(
-        TargetMalloc(TARGET(kX86), M * sizeof(float)));
+        TargetMalloc(TARGET(kLoongArch), M * sizeof(float)));
     // if no bias, malloc a buffer and set all zero.
     if (bias == nullptr) {
       _in_bias = reinterpret_cast<float *>(
-          TargetMalloc(TARGET(kX86), M * sizeof(float)));
+          TargetMalloc(TARGET(kLoongArch), M * sizeof(float)));
       memset(_in_bias, 0, M * sizeof(float));
       repack_bias(_is_trans_A, M, K, _in_bias, _re_bias, _Sa, _Sb, _Sc, _A);
     } else {
@@ -192,19 +193,19 @@ class generate_gemm_s8u8_x86_kern {
 
   void gemm_int8_deinit() {
     if (_pack_A != nullptr) {
-      TargetFree(TARGET(kX86), _pack_A);
+      TargetFree(TARGET(kLoongArch), _pack_A);
     }
     if (_pack_B != nullptr) {
-      TargetFree(TARGET(kX86), _pack_B);
+      TargetFree(TARGET(kLoongArch), _pack_B);
     }
     if (_re_bias != nullptr) {
-      TargetFree(TARGET(kX86), _re_bias);
+      TargetFree(TARGET(kLoongArch), _re_bias);
     }
     if (_scale != nullptr) {
-      TargetFree(TARGET(kX86), _scale);
+      TargetFree(TARGET(kLoongArch), _scale);
     }
     if (_in_bias != nullptr) {
-      TargetFree(TARGET(kX86), _in_bias);
+      TargetFree(TARGET(kLoongArch), _in_bias);
     }
   }
 
@@ -214,6 +215,6 @@ class generate_gemm_s8u8_x86_kern {
 #undef PARAM_INIT
 
 }  // namespace math
-}  // namespace x86
+}  // namespace loongarch
 }  // namespace lite
 }  // namespace paddle
