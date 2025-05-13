@@ -260,7 +260,6 @@ function init_cmake_mutable_options {
                         -DLITE_SKIP_SUPPORT_0_DIM_TENSOR_PASS=$SKIP_SUPPORT_0_DIM_TENSOR_PASS \
                         -DLITE_WITH_ARM_DNN_LIBRARY=$WITH_ARM_DNN_LIBRARY \
                         -DLITE_ON_TINY_PUBLISH=$WITH_TINY_PUBLISH"
-
 }
 #####################################################################################################
 
@@ -368,7 +367,9 @@ function make_publish_so {
 
     cmake $workspace \
         ${CMAKE_COMMON_OPTIONS} \
-        ${cmake_mutable_options} 
+        ${cmake_mutable_options} \
+        -DCMAKE_CXX_FLAGS="-mlasx" \
+        -DCMAKE_C_FLAGS="-mlasx"
 
     if [ "${WITH_BENCHMARK}" == "ON" ]; then
         make benchmark_bin -j$NUM_PROC

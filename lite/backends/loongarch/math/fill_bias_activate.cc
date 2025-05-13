@@ -144,7 +144,6 @@ static void activate_relu_inplace_bias(float *data,
 }
 
 static void activate_lrelu_inplace(float *data, int len, float alpha) {
-  const int cmp_le_os = 2;
   int i = 0;
 
 
@@ -176,7 +175,6 @@ static void activate_lrelu_inplace_bias(float *data,
                                         int channel,
                                         int channel_size,
                                         float alpha) {
-  const int cmp_le_os = 2;
   int i = 0;
   int j = 0;
   float *tmp_data = data;

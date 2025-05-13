@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #pragma once
-#include "lite/backends/loongarch/math/instruction_utils.h"
+#include "lasxintrin.h"
+#include "lsxintrin.h"
 #include "lite/core/tensor.h"
 #include "lite/operators/op_params.h"
 

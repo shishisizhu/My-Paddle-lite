@@ -1,6 +1,6 @@
 #include "lite/kernels/loongarch/conv_compute.h"
 #include <utility>
-#include "lite/backends/x86/math/fill_bias_activate.h"
+#include "lite/backends/loongarch/math/fill_bias_activate.h"
 #include "lite/kernels/loongarch/conv_depthwise.h"
 //TODO
 //#include "lite/kernels/x86/conv_direct.h"
@@ -195,12 +195,270 @@ void Conv2dCompute<PRECISION(kFloat), PRECISION(kFloat)>::Run() {
       }
     }
     //! bias and activate
-    lite::x86::math::fill_bias_act(
+    lite::loongarch::math::fill_bias_act(
         dout_batch, bias_ptr, chout, wout * hout, flag_bias, &act_param);
   }
-  if (!flag_1x1gemm_) TargetFree(TARGET(kX86), col_data);
+  if (!flag_1x1gemm_) TargetFree(TARGET(kLoongArch), col_data);
 }
 
+template <>
+void Conv2dCompute<PRECISION(kInt8), PRECISION(kFloat)>::PrepareForRun() {
+  PREPARE_PARAM_INT8
+  if (kernel_w == 1 && stride_w == 1 && paddings[0] == 0 && kps_equal &&
+      pads_equal) {
+    flag_1x1gemm_ = true;
+  } else {
+    flag_1x1gemm_ = false;
+  }
+
+  auto o_dims = param.output->dims();
+  int m = output_channel / groups;
+  int n = o_dims[2] * o_dims[3];
+  int k = input_channel * kernel_h * kernel_w / groups;
+  int group_size_weights = m * k;
+  auto weights = param.filter->data<int8_t>();
+  bool flag_bias = (param.bias != nullptr);
+  const float* bias_ptr =
+      flag_bias ? static_cast<const float*>(param.bias->data<float>())
+                : nullptr;
+  auto w_scale_ = param.weight_scale;
+
+  Tensor weight_s{};
+  weight_s.Resize({param.filter->dims()[0]});
+  weight_s.set_precision(PRECISION(kFloat));
+  auto weight_tmp = weight_s.mutable_data<float>();
+
+  if (w_scale_.size() != 1 && w_scale_.size() != param.filter->dims()[0]) {
+    LOG(FATAL) << "weights scale size must equal to filter size";
+  }
+  if (w_scale_.size() == 1) {
+    for (int i = 0; i < param.filter->dims()[0]; ++i) {
+      weight_tmp[i] = (w_scale_[0]);
+    }
+  } else {
+    for (int i = 0; i < param.filter->dims()[0]; ++i) {
+      weight_tmp[i] = (w_scale_[i]);
+    }
+  }
+  auto weight_scale = weight_s.data<float>();
+  const float input_scale = param.input_scale;
+  const float output_scale = param.output_scale;
+  int relu_type = 0;
+  float relu_alpha = 1.f;
+
+  if (param.activation_param.active_type == lite_api::ActivationType::kRelu6) {
+    relu_type = 2;
+    relu_alpha = param.activation_param.Relu_clipped_coef;
+  } else if (param.activation_param.active_type ==
+             lite_api::ActivationType::kLeakyRelu) {
+    relu_type = 3;
+    relu_alpha = param.activation_param.Leaky_relu_alpha;
+  } else if (param.activation_param.active_type ==
+             lite_api::ActivationType::kRelu) {
+    relu_type = 1;
+  }
+  for (int g = 0; g < groups; g++) {
+    const int8_t* weights_group = weights + g * group_size_weights;
+    auto gemm = new lite::loongarch::math::generate_gemm_s8u8_loongarch_kern<float>(
+        false,
+        false,
+        m,
+        n,
+        k,
+        weights_group,
+        n,
+        weight_scale + g * m,
+        input_scale,
+        output_scale,
+        bias_ptr + g * m,
+        relu_type,
+        relu_alpha);
+    gemm_s8_ptr_float_.push_back(gemm);
+  }
+}
+
+template <>
+void Conv2dCompute<PRECISION(kInt8), PRECISION(kFloat)>::Run() {
+  INIT_PARAM
+  int group_size_coldata = n * k;
+  int channel_size_in = hin * win;
+  int channel_size_out = hout * wout;
+  int chin_per_group = chin / group;
+  int group_size_weights = m * k;
+  int8_t* col_data = nullptr;
+  auto din = param.x->data<int8_t>();
+  auto dout = param.output->mutable_data<float>();
+  auto weights = param.filter->data<int8_t>();
+  auto paddings = *param.paddings;
+  auto dilations = *param.dilations;
+
+  if (!flag_1x1gemm_) {
+    int col_size = group * group_size_coldata;
+    col_data = static_cast<int8_t*>(
+        TargetMalloc(TARGET(kLoongArch), col_size * sizeof(int8_t)));
+  }
+  for (int b = 0; b < num; ++b) {
+    for (int g = 0; g < group; ++g) {
+      float* dout_group = dout + (b * chout + g * m) * channel_size_out;
+      const int8_t* din_group =
+          din + (b * chin + g * chin_per_group) * channel_size_in;
+      const int8_t* weights_group = weights + g * group_size_weights;
+
+      if (!flag_1x1gemm_) {
+        lite::loongarch::math::im2col<int8_t>(din_group,
+                                        chin_per_group,
+                                        hin,
+                                        win,
+                                        kh,
+                                        kw,
+                                        paddings[0],
+                                        paddings[1],
+                                        paddings[2],
+                                        paddings[3],
+                                        param.strides[0],
+                                        param.strides[1],
+                                        dilations[0],
+                                        dilations[1],
+                                        col_data);
+        gemm_s8_ptr_float_[g]->compute(weights_group, col_data, dout_group);
+      } else {
+        gemm_s8_ptr_float_[g]->compute(weights_group, din_group, dout_group);
+      }
+    }
+  }
+  if (!flag_1x1gemm_) TargetFree(TARGET(kLoongArch), col_data);
+}
+
+template <>
+void Conv2dCompute<PRECISION(kInt8), PRECISION(kInt8)>::PrepareForRun() {
+  PREPARE_PARAM_INT8
+  if (kernel_w == 1 && stride_w == 1 && paddings[0] == 0 && kps_equal &&
+      pads_equal) {
+    flag_1x1gemm_ = true;
+  } else {
+    flag_1x1gemm_ = false;
+  }
+
+  auto o_dims = param.output->dims();
+  int m = output_channel / groups;
+  int n = o_dims[2] * o_dims[3];
+  int k = input_channel * kernel_h * kernel_w / groups;
+  int group_size_weights = m * k;
+  auto weights = param.filter->data<int8_t>();
+  bool flag_bias = (param.bias != nullptr);
+  const float* bias_ptr =
+      flag_bias ? static_cast<const float*>(param.bias->data<float>())
+                : nullptr;
+  auto w_scale_ = param.weight_scale;
+  Tensor weight_s{};
+  weight_s.Resize({param.filter->dims()[0]});
+  weight_s.set_precision(PRECISION(kFloat));
+  auto weight_tmp = weight_s.mutable_data<float>();
+
+  if (w_scale_.size() != 1 && w_scale_.size() != param.filter->dims()[0]) {
+    LOG(FATAL) << "weights scale size must equal to filter size";
+  }
+  if (w_scale_.size() == 1) {
+    for (int i = 0; i < param.filter->dims()[0]; ++i) {
+      weight_tmp[i] = (w_scale_[0]);
+    }
+  } else {
+    for (int i = 0; i < param.filter->dims()[0]; ++i) {
+      weight_tmp[i] = (w_scale_[i]);
+    }
+  }
+  const float input_scale = param.input_scale;
+  const float output_scale = param.output_scale;
+  int relu_type = 0;
+  float relu_alpha = 1.f;
+
+  if (param.activation_param.has_active) {
+    if (param.activation_param.active_type ==
+        lite_api::ActivationType::kRelu6) {
+      relu_type = 2;
+      relu_alpha = param.activation_param.Relu_clipped_coef / output_scale;
+    } else if (param.activation_param.active_type ==
+               lite_api::ActivationType::kLeakyRelu) {
+      relu_type = 3;
+      relu_alpha = param.activation_param.Leaky_relu_alpha / output_scale;
+    } else if (param.activation_param.active_type ==
+               lite_api::ActivationType::kRelu) {
+      relu_type = 1;
+    }
+  }
+
+  auto weight_scale = weight_s.data<float>();
+  for (int g = 0; g < groups; g++) {
+    const int8_t* weights_group = weights + g * group_size_weights;
+    auto gemm = new lite::loongarch::math::generate_gemm_s8u8_loongarch_kern<int8_t>(
+        false,
+        false,
+        m,
+        n,
+        k,
+        weights_group,
+        n,
+        weight_scale + g * m,
+        input_scale,
+        output_scale,
+        bias_ptr + g * m,
+        relu_type,
+        relu_alpha);
+    gemm_s8_ptr_int8_.push_back(gemm);
+  }
+}
+
+template <>
+void Conv2dCompute<PRECISION(kInt8), PRECISION(kInt8)>::Run() {
+  INIT_PARAM
+  int group_size_coldata = n * k;
+  int channel_size_in = hin * win;
+  int channel_size_out = hout * wout;
+  int chin_per_group = chin / group;
+  int group_size_weights = m * k;
+  int8_t* col_data = nullptr;
+  auto din = param.x->data<int8_t>();
+  auto dout = param.output->mutable_data<int8_t>();
+  auto weights = param.filter->data<int8_t>();
+  auto paddings = *param.paddings;
+  auto dilations = *param.dilations;
+
+  if (!flag_1x1gemm_) {
+    int col_size = group * group_size_coldata;
+    col_data = static_cast<int8_t*>(
+        TargetMalloc(TARGET(kLoongArch), col_size * sizeof(int8_t)));
+  }
+  for (int b = 0; b < num; ++b) {
+    for (int g = 0; g < group; ++g) {
+      int8_t* dout_group = dout + (b * chout + g * m) * channel_size_out;
+      const int8_t* din_group =
+          din + (b * chin + g * chin_per_group) * channel_size_in;
+      const int8_t* weights_group = weights + g * group_size_weights;
+
+      if (!flag_1x1gemm_) {
+        lite::loongarch::math::im2col<int8_t>(din_group,
+                                        chin_per_group,
+                                        hin,
+                                        win,
+                                        kh,
+                                        kw,
+                                        paddings[0],
+                                        paddings[1],
+                                        paddings[2],
+                                        paddings[3],
+                                        param.strides[0],
+                                        param.strides[1],
+                                        dilations[0],
+                                        dilations[1],
+                                        col_data);
+        gemm_s8_ptr_int8_[g]->compute(weights_group, col_data, dout_group);
+      } else {
+        gemm_s8_ptr_int8_[g]->compute(weights_group, din_group, dout_group);
+      }
+    }
+  }
+  if (!flag_1x1gemm_) TargetFree(TARGET(kLoongArch), col_data);
+}
 
 #undef PREPARE_PARAM
 #undef PREPARE_PARAM_INT8
@@ -210,3 +468,75 @@ void Conv2dCompute<PRECISION(kFloat), PRECISION(kFloat)>::Run() {
 }  // namespace lite
 }  // namespace paddle
 
+typedef paddle::lite::kernels::loongarch::Conv2dCompute<PRECISION(kFloat),
+                                                  PRECISION(kFloat)>
+    ConvFp32;
+typedef paddle::lite::kernels::loongarch::Conv2dCompute<PRECISION(kInt8),
+                                                  PRECISION(kFloat)>
+    ConvInt8_Fp32;
+typedef paddle::lite::kernels::loongarch::Conv2dCompute<PRECISION(kInt8),
+                                                  PRECISION(kInt8)>
+    ConvInt8_Int8;
+
+REGISTER_LITE_KERNEL(conv2d, kLoongArch, kFloat, kNCHW, ConvFp32, def)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindInput("SecondInput", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindInput("Filter", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindOutput("Output", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindPaddleOpVersion("conv2d", 1)
+    .Finalize();
+
+REGISTER_LITE_KERNEL(depthwise_conv2d, kLoongArch, kFloat, kNCHW, ConvFp32, def)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindInput("Filter", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindOutput("Output", {LiteType::GetTensorTy(TARGET(kLoongArch))})
+    .BindPaddleOpVersion("depthwise_conv2d", 1)
+    .Finalize();
+
+REGISTER_LITE_KERNEL(conv2d, kLoongArch, kInt8, kNCHW, ConvInt8_Int8, int8_out)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("SecondInput",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindInput("Filter",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindOutput("Output",
+                {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindPaddleOpVersion("conv2d", 1)
+    .Finalize();
+
+REGISTER_LITE_KERNEL(conv2d, kLoongArch, kInt8, kNCHW, ConvInt8_Fp32, fp32_out)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("SecondInput",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindInput("Filter",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindOutput("Output",
+                {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindPaddleOpVersion("conv2d", 1)
+    .Finalize();
+
+REGISTER_LITE_KERNEL(
+    depthwise_conv2d, kLoongArch, kInt8, kNCHW, ConvInt8_Int8, int8_out)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindInput("Filter",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindOutput("Output",
+                {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindPaddleOpVersion("depthwise_conv2d", 1)
+    .Finalize();
+
+REGISTER_LITE_KERNEL(
+    depthwise_conv2d, kLoongArch, kInt8, kNCHW, ConvInt8_Fp32, fp32_out)
+    .BindInput("Input", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindInput("Bias", {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindInput("Filter",
+               {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kInt8))})
+    .BindOutput("Output",
+                {LiteType::GetTensorTy(TARGET(kLoongArch), PRECISION(kFloat))})
+    .BindPaddleOpVersion("depthwise_conv2d", 1)
+    .Finalize();

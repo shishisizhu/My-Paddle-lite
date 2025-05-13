@@ -15,7 +15,7 @@ limitations under the License. */
 #include "lite/backends/loongarch/math/conv_depthwise_pack8.h"
 #include <vector>
 #include "lite/backends/loongarch/math/conv_utils.h"
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 namespace paddle {
 namespace lite {
 namespace loongarch {

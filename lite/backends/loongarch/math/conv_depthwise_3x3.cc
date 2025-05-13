@@ -20,7 +20,7 @@ limitations under the License. */
 #include "lite/core/memory.h"
 #include <lasxintrin.h>
 #include <lsxintrin.h>
-
+#include "lite/backends/loongarch/math/instruction_utils.h"
 namespace paddle {
 namespace lite {
 namespace loongarch {

@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
+#include "lasxintrin.h"
+#include "lsxintrin.h"
 #include "lite/backends/loongarch/math/instruction_utils.h"
 #include <vector>
 #include "lite/core/context.h"

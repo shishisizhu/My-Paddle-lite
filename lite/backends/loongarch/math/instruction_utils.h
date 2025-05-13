@@ -6,6 +6,10 @@
 
 //lasx_m256i_set_epi32
 
+namespace paddle {
+namespace lite {
+namespace loongarch {
+namespace math {
 #define CONVERT_IMM8(x) ((x) ^ (2U | (2U << 4)))
 
 #ifdef Q_CC_CLANG
@@ -561,5 +565,8 @@ inline __m256i lasx_inserti128_si256(__m256i a, __m128i b, const int imm8) {
    return imm8==0 ? lasx_set_q(lasx_extracti128_hi(a), b) : lasx_set_q(b, lasx_extracti128_lo(a));
 }
 
-
+}
+}
+}
+}
 

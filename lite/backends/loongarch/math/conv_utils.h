@@ -1,5 +1,5 @@
 #pragma once
-#include "lite/backends/loongarch/math/instruction_utils.h"
+
 #include <lasxintrin.h>
 #include <lsxintrin.h>
 #include <vector>
@@ -148,6 +148,12 @@ void im2col_s2(const Dtype* data_im,
                int dilation_w,
                Dtype* data_col);
 
+inline __m256i _lasx_mm_shuffle(uint32_t a3, uint32_t a2, uint32_t a1, uint32_t a0) {
+    
+    uint32_t nums[8] = {a0+4, a1+4, a2, a3, a0+4, a1+4, a2, a3};
+    return __lasx_xvld(nums, 0);
+}
+#define CONVERT(x) ((x) ^ (2U | (2U << 4)))
 // From: https://stackoverflow.com/a/25627536
 inline void transpose8_ps(__m256& row0,  // NOLINT
                           __m256& row1,  // NOLINT
@@ -168,22 +174,22 @@ inline void transpose8_ps(__m256& row0,  // NOLINT
   __t5 = __lasx_xvilvh_w((__m256i)row5, (__m256i)row4);
   __t6 = __lasx_xvilvl_w((__m256i)row7, (__m256i)row6);
   __t7 = __lasx_xvilvh_w((__m256i)row7, (__m256i)row6);
-  __tt0 = lasx_m256i_shuffle_ps(__t0, __t2, lasx_mm_shuffle(1, 0, 1, 0));
-  __tt1 = lasx_m256i_shuffle_ps(__t0, __t2, lasx_mm_shuffle(3, 2, 3, 2));
-  __tt2 = lasx_m256i_shuffle_ps(__t1, __t3, lasx_mm_shuffle(1, 0, 1, 0));
-  __tt3 = lasx_m256i_shuffle_ps(__t1, __t3, lasx_mm_shuffle(3, 2, 3, 2));
-  __tt4 = lasx_m256i_shuffle_ps(__t4, __t6, lasx_mm_shuffle(1, 0, 1, 0));
-  __tt5 = lasx_m256i_shuffle_ps(__t4, __t6, lasx_mm_shuffle(3, 2, 3, 2));
-  __tt6 = lasx_m256i_shuffle_ps(__t5, __t7, lasx_mm_shuffle(1, 0, 1, 0));
-  __tt7 = lasx_m256i_shuffle_ps(__t5, __t7, lasx_mm_shuffle(3, 2, 3, 2));
-  row0 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x20));
-  row1 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x20));
-  row2 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x20));
-  row3 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x20));
-  row4 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT_IMM8(0x31));
-  row5 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT_IMM8(0x31));
-  row6 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT_IMM8(0x31));
-  row7 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT_IMM8(0x31));
+  __tt0 = __lasx_xvshuf_w(_lasx_mm_shuffle(1, 0, 1, 0), __t0, __t2);
+  __tt1 = __lasx_xvshuf_w(_lasx_mm_shuffle(3, 2, 3, 2), __t0, __t2);
+  __tt2 = __lasx_xvshuf_w(_lasx_mm_shuffle(1, 0, 1, 0), __t1, __t3);
+  __tt3 = __lasx_xvshuf_w(_lasx_mm_shuffle(3, 2, 3, 2), __t1, __t3);
+  __tt4 = __lasx_xvshuf_w(_lasx_mm_shuffle(1, 0, 1, 0), __t4, __t6);
+  __tt5 = __lasx_xvshuf_w(_lasx_mm_shuffle(3, 2, 3, 2), __t4, __t6);
+  __tt6 = __lasx_xvshuf_w(_lasx_mm_shuffle(1, 0, 1, 0), __t5, __t7);
+  __tt7 = __lasx_xvshuf_w(_lasx_mm_shuffle(3, 2, 3, 2), __t5, __t7);
+  row0 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT(0x20));
+  row1 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT(0x20));
+  row2 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT(0x20));
+  row3 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT(0x20));
+  row4 = (__m256)__lasx_xvpermi_q(__tt0, __tt4, CONVERT(0x31));
+  row5 = (__m256)__lasx_xvpermi_q(__tt1, __tt5, CONVERT(0x31));
+  row6 = (__m256)__lasx_xvpermi_q(__tt2, __tt6, CONVERT(0x31));
+  row7 = (__m256)__lasx_xvpermi_q(__tt3, __tt7, CONVERT(0x31));
 }
 
 

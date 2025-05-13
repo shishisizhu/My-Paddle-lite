@@ -1,5 +1,4 @@
 #pragma once
-#include <Eigen/Core>
 #include <string>
 #include <vector>
 #include "lite/backends/loongarch/math/conv_utils.h"

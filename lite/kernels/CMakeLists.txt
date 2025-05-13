@@ -87,6 +87,7 @@ if (LITE_BUILD_TAILOR)
     endforeach()
 endif()
 
+add_subdirectory(loongarch)
 add_subdirectory(host)
 add_subdirectory(arm)
 add_subdirectory(x86)

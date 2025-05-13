@@ -31,7 +31,6 @@ void gemm_fuse_relu_bias(__m256* vec_data,
                          __m256 vec_alph,
                          __m256 vec_zero,
                          int act_mode) {
-  const int cmp_le_os = 2;
   __m256 vec_lr, vec_mask;
   *vec_data = __lasx_xvfadd_s(*vec_data, vec_bias);
   switch (act_mode) {

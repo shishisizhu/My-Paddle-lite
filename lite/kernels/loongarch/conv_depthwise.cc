@@ -1,5 +1,4 @@
 #include "lite/kernels/loongarch/conv_depthwise.h"
-
 #include "lite/backends/loongarch/math/conv_depthwise_pack4.h"
 #include "lite/backends/loongarch/math/conv_depthwise_pack8.h"
 #include "lite/backends/loongarch/math/conv_utils.h"
